@@ -1,13 +1,17 @@
 import streamlit as st
 import requests
+import os
 
-API_BASE_URL = "http://127.0.0.1:8000"
+LOCAL_API_URL = "http://127.0.0.1:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", LOCAL_API_URL)
+
 
 
 st.set_page_config(page_title="Coach V3", page_icon="💬")
 st.title("Coach V3")
 
 st.write("Basic local UI to test the backend API endpoints.")
+st.write(f"Using API: {API_BASE_URL}")
 
 if st.button("Initialise session"):
     try:
