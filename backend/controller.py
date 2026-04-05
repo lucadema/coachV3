@@ -19,7 +19,15 @@ from __future__ import annotations
 
 import uuid
 
-from backend.enums import ChatRole, ClassificationState, Stage
+from backend.enums import (
+    ChatRole,
+    ClassificationState,
+    ClosureState,
+    CoachingState,
+    PathwaysState,
+    Stage,
+    SynthesisState,
+)
 from backend.models import ChatMessage, Session, StageReply
 from backend.state_store import state_store
 from backend.stages import classification, closure, coaching, pathways, synthesis
@@ -28,6 +36,26 @@ from backend.stages import classification, closure, coaching, pathways, synthesi
 # ============================================================================
 # Session lifecycle helpers
 # ============================================================================
+
+INITIAL_STATE_BY_STAGE = {
+    Stage.CLASSIFICATION: ClassificationState.EVALUATING.value,
+    Stage.COACHING: CoachingState.GUIDING.value,
+    Stage.SYNTHESIS: SynthesisState.PREPARING.value,
+    Stage.PATHWAYS: PathwaysState.PREPARING.value,
+    Stage.CLOSURE: ClosureState.PREPARING.value,
+}
+
+
+def _initial_state_for_stage(stage: Stage) -> str:
+    """Return the required initial local state for a macro-stage."""
+    return INITIAL_STATE_BY_STAGE[stage]
+
+
+def _append_debug_message(existing: str | None, extra: str) -> str:
+    """Append one debug line without discarding earlier diagnostics."""
+    if not existing:
+        return extra
+    return f"{existing}\n{extra}"
 
 def _create_session(session_id: str | None = None) -> Session:
     """
@@ -39,7 +67,7 @@ def _create_session(session_id: str | None = None) -> Session:
     return Session(
         session_id=session_id or str(uuid.uuid4()),
         stage=Stage.CLASSIFICATION.value,
-        state=ClassificationState.EVALUATING.value,
+        state=_initial_state_for_stage(Stage.CLASSIFICATION),
         debug_message="Session initialized.",
     )
 
@@ -124,7 +152,18 @@ def _apply_macro_stage_transition(stage_reply: StageReply) -> Session:
     session = stage_reply.session
 
     if stage_reply.next_stage is not None:
+        previous_stage = session.stage
         session.stage = stage_reply.next_stage.value
+        session.state = _initial_state_for_stage(stage_reply.next_stage)
+        session.stage_context = {}
+        session.debug_message = _append_debug_message(
+            session.debug_message,
+            (
+                "Macro transition applied: "
+                f"{previous_stage} -> {session.stage}; "
+                f"local_state -> {session.state}."
+            ),
+        )
 
     return session
 

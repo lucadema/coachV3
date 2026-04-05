@@ -1,0 +1,225 @@
+version: "v3"
+
+meta:
+  description: "Classification stage YAML prompt/config for Coach V3"
+  source_of_truth_note: "Code is source of truth for exact model names, routes, and transition logic. YAML supports prompt construction only."
+  template_alignment_note: "This stage-specific file mirrors the uploaded V3 stage template as closely as possible while preserving current backend/engine.py compatibility."
+  current_engine_compatibility_note: "The current engine reads only: prompt, state_instructions, criteria, heuristics, outputs."
+
+shared:
+  llm_defaults:
+    temperature: 0.2
+    max_output_tokens: 500
+    timeout_seconds: 20
+
+  prompt_build:
+    components_in_order:
+      - system_identity
+      - stage_purpose
+      - state_context
+      - stage_rules
+      - output_contract
+      - stage_examples
+      - chat_history
+      - latest_user_message
+
+  output_contracts:
+    classification_eval:
+      format: json
+      fields:
+        classification_label:
+          type: string
+          allowed_values: [valid, ambiguous, invalid]
+        evaluation_message:
+          type: string
+          description: "Short internal evaluation summary for controller/debugging."
+        coach_message:
+          type: string
+          description: "User-facing reply. Clarification or rejection/acceptance wording."
+        debug_message:
+          type: string
+          description: "Concise trace/debug text describing how the result was reached."
+
+stage: classification
+enabled: true
+purpose: "Determine whether the opening input can enter the process."
+stage_notes:
+  - "Classification supports valid, ambiguous, invalid."
+  - "Bounded ambiguity is enforced in code, not in YAML."
+  - "If state is ambiguous and clarification still does not resolve, the stage module should cancel/reject."
+  - "Root keys prompt/state_instructions/criteria/heuristics/outputs are temporary current-engine compatibility shims."
+
+prompt_assets:
+  system_identity: |
+    You are the classification component of Coach V3.
+    Your task is only to decide whether the user's opening issue can enter the coaching process.
+    Do not coach, solve, or broaden scope.
+
+  stage_purpose: |
+    Decide whether the opening input is:
+    - valid: clearly suitable to enter the process
+    - ambiguous: unclear and requires one clarification
+    - invalid: not suitable to enter the process
+
+  stage_rules:
+    - "Return exactly one classification label: valid, ambiguous, or invalid."
+    - "If the issue is unclear but potentially relevant, prefer ambiguous over invalid."
+    - "Do not loop ambiguity forever; bounded ambiguity is handled by code."
+    - "Keep evaluation_message concise and explicit."
+    - "Keep debug_message explicit enough for trace inspection."
+    - "coach_message must be user-facing and concise."
+
+  output_contract_ref: "classification_eval"
+
+signals:
+  valid_signals:
+    - "The user presents a coherent professional or work-related issue suitable for coaching."
+    - "The user input contains enough substance to begin guided problem framing."
+    - "The user asks for help on a matter that can reasonably proceed into coaching."
+
+  ambiguous_signals:
+    - "The user intent is partially relevant but too vague to accept directly."
+    - "The user message lacks enough context to decide whether it fits the process."
+    - "A single clarification question could likely resolve suitability."
+
+  invalid_signals:
+    - "The user request is clearly outside the intended process."
+    - "The message is too off-topic or structurally unfit for the coaching flow."
+    - "The input remains unclear after bounded ambiguity has been used."
+
+states:
+  evaluating:
+    prompt_context: |
+      The opening input is being assessed.
+      Decide whether it is valid, ambiguous, or invalid.
+    prompt_hints:
+      - "Use the initial user message and relevant session context only."
+      - "Do not assume facts not present in the conversation."
+
+  ambiguous:
+    prompt_context: |
+      One clarification has already been requested.
+      Use the clarification response to resolve the issue.
+    prompt_hints:
+      - "Try to resolve to valid or invalid."
+      - "Do not request endless clarification."
+
+  completed:
+    prompt_context: "Informational only. No prompt usually required."
+
+  cancelled:
+    prompt_context: "Informational only. No prompt usually required."
+
+examples:
+  valid:
+    user_message: "I keep postponing the important strategic work because urgent requests consume all my time."
+    expected:
+      classification_label: "valid"
+
+  ambiguous:
+    user_message: "Things are not working well and I need help."
+    expected:
+      classification_label: "ambiguous"
+
+  invalid:
+    user_message: "Tell me the weather forecast for Rome tomorrow."
+    expected:
+      classification_label: "invalid"
+
+# Current engine compatibility keys.
+# These are intentionally derived from the richer template-aligned sections
+# above so the next engine rewrite can migrate with minimal YAML churn.
+prompt:
+  system: |
+    You are the classification component of Coach V3.
+    Your task is only to decide whether the user's opening issue can enter the coaching process.
+    Do not coach, solve, or broaden scope.
+
+    Decide whether the opening input is:
+    - valid: clearly suitable to enter the process
+    - ambiguous: unclear and requires one clarification
+    - invalid: not suitable to enter the process
+  output_schema: |
+    classification_label: valid | ambiguous | invalid
+    evaluation_message: short internal evaluation summary for controller/debugging
+    coach_message: concise user-facing reply
+    debug_message: concise trace/debug text describing how the result was reached
+
+state_instructions:
+  evaluating: |
+    The opening input is being assessed.
+    Decide whether it is valid, ambiguous, or invalid.
+    Use the initial user message and relevant session context only.
+    Do not assume facts not present in the conversation.
+  ambiguous: |
+    One clarification has already been requested.
+    Use the clarification response to resolve the issue.
+    Try to resolve to valid or invalid.
+    Do not request endless clarification.
+
+criteria:
+  valid: |
+    The user presents a coherent professional or work-related issue suitable for coaching.
+    The user input contains enough substance to begin guided problem framing.
+    The user asks for help on a matter that can reasonably proceed into coaching.
+  ambiguous: |
+    The user intent is partially relevant but too vague to accept directly.
+    The user message lacks enough context to decide whether it fits the process.
+    A single clarification question could likely resolve suitability.
+  invalid: |
+    The user request is clearly outside the intended process.
+    The message is too off-topic or structurally unfit for the coaching flow.
+    The input remains unclear after bounded ambiguity has been used.
+
+heuristics:
+  min_words_for_valid: 6
+  first_person_tokens:
+    - i
+    - i'm
+    - im
+    - me
+    - my
+  coaching_keywords:
+    - work
+    - career
+    - manager
+    - team
+    - relationship
+    - conflict
+    - stress
+    - overwhelmed
+    - burnout
+    - decision
+    - decide
+    - goal
+    - priorities
+    - communication
+    - boundaries
+  ambiguous_keywords:
+    - help
+    - advice
+    - stuck
+    - unsure
+    - not sure
+    - something
+    - issue
+    - problem
+  invalid_keywords:
+    - weather
+    - joke
+    - recipe
+    - sports score
+    - stock price
+    - movie review
+    - trivia
+
+outputs:
+  valid:
+    evaluation: "Classification result: valid. The opening message contains a coaching-suitable issue with enough context to proceed."
+    coach: "Thanks. That sounds like a real situation we can work through, so let's begin."
+  ambiguous:
+    evaluation: "Classification result: ambiguous. The opening message may be coaching-relevant, but it still needs clarification."
+    coach: "I can help, but I need one clearer sentence about the decision, challenge, or conflict you want coaching on."
+  invalid:
+    evaluation: "Classification result: invalid. The opening message does not fit the coaching intake flow."
+    coach: "I can't continue this session because the opening message does not describe a coaching issue I can work on here."

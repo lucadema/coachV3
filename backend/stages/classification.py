@@ -3,50 +3,121 @@ Classification stage module for Coach V3.
 
 Purpose
 -------
-This module owns the local FSM and stage-specific behaviour for the Classification
-macro-stage.
+This module owns the local FSM and stage-specific behaviour for the
+Classification macro-stage.
 
-Current scaffold status
------------------------
-This file intentionally implements only a minimal placeholder handler.
-It does not yet contain:
-- local state transition logic
-- calls into engine.py
-- prompt construction
-- stage-specific validation
-- macro-stage advancement logic
-
-Design rule
------------
-The controller owns macro-stage orchestration and passes the in-memory Session
-directly to this stage module. This stage module updates the session locally
-and returns a StageReply only because that reply may also carry an optional
-next_stage request.
+This is the first real stage implementation in V3. It owns the local
+classification FSM and uses backend.engine for prompt/config loading plus
+deterministic first-slice classification support.
 """
 
+from backend.engine import engine
+from backend.enums import ClassificationState, Stage
 from backend.models import Session, StageReply
+
+
+def _join_debug_lines(*lines: str) -> str:
+    """Build a readable debug trace without dropping earlier details."""
+    return "\n".join(line for line in lines if line)
 
 
 def handle_stage(session: Session) -> StageReply:
     """
     Handle one turn for the Classification stage.
 
-    Input
-    -----
-    session:
-        The current in-memory session already loaded by controller.py.
+    Local FSM:
+    - evaluating -> ambiguous
+    - evaluating -> completed
+    - evaluating -> cancelled
+    - ambiguous -> completed
+    - ambiguous -> cancelled
 
-    Output
-    ------
-    StageReply:
-        The updated session, plus an optional next_stage when this stage later
-        becomes able to request a macro-stage transition.
-
-    Notes
-    -----
-    For now this is a no-op placeholder that only records a stage-specific
-    debug message.
+    Bounded ambiguity rule:
+    - if the user is already in ambiguous and the clarification still does not
+      resolve the issue, cancel rather than looping forever
     """
-    session.debug_message = "Classification stage handler invoked."
+    current_state = session.state
+
+    if current_state not in {
+        ClassificationState.EVALUATING.value,
+        ClassificationState.AMBIGUOUS.value,
+    }:
+        session.state = ClassificationState.CANCELLED.value
+        session.cancelled = True
+        session.evaluation_message = (
+            "Classification result: invalid internal state. The stage received "
+            "an unexpected classification state."
+        )
+        session.coach_message = (
+            "I can't continue because the classification stage entered an "
+            "unexpected state."
+        )
+        session.debug_message = _join_debug_lines(
+            "classification_stage_error=unexpected_state",
+            f"classification_state_in={current_state}",
+            f"classification_state_out={session.state}",
+        )
+        return StageReply(session=session)
+
+    result = engine.classify(session)
+    session.evaluation_message = result["evaluation_message"]
+
+    if result["outcome"] == "valid":
+        session.state = ClassificationState.COMPLETED.value
+        session.cancelled = False
+        session.coach_message = result["coach_message"]
+        session.debug_message = _join_debug_lines(
+            result["debug_message"],
+            f"classification_transition={current_state}_to_completed",
+            "classification_resolution=accepted",
+            f"classification_state_out={session.state}",
+            f"next_stage={Stage.COACHING.value}",
+        )
+        return StageReply(session=session, next_stage=Stage.COACHING)
+
+    if current_state == ClassificationState.AMBIGUOUS.value:
+        session.state = ClassificationState.CANCELLED.value
+        session.cancelled = True
+        session.evaluation_message = (
+            "Classification result: cancelled after clarification. "
+            f"The follow-up still did not resolve the intake. Underlying "
+            f"decision: {result['evaluation_message']}"
+        )
+        session.coach_message = (
+            "I still can't identify a clear coaching issue from the "
+            "clarification, so I'll stop here rather than keep looping. "
+            "Please start a new session with the specific decision, "
+            "challenge, or conflict you want to work on."
+        )
+        session.debug_message = _join_debug_lines(
+            result["debug_message"],
+            "classification_transition=ambiguous_to_cancelled",
+            "bounded_ambiguity_triggered=true",
+            "classification_resolution=rejected_after_clarification",
+            f"classification_state_out={session.state}",
+        )
+        return StageReply(session=session)
+
+    if result["outcome"] == "ambiguous":
+        session.state = ClassificationState.AMBIGUOUS.value
+        session.cancelled = False
+        session.coach_message = result["coach_message"]
+        session.debug_message = _join_debug_lines(
+            result["debug_message"],
+            "classification_transition=evaluating_to_ambiguous",
+            "classification_resolution=needs_clarification",
+            f"classification_state_out={session.state}",
+        )
+        return StageReply(session=session)
+
+    session.state = ClassificationState.CANCELLED.value
+    session.cancelled = True
+    session.coach_message = result["coach_message"]
+    session.debug_message = _join_debug_lines(
+        result["debug_message"],
+        f"classification_transition={current_state}_to_cancelled",
+        "classification_resolution=rejected",
+        f"classification_state_out={session.state}",
+    )
 
     return StageReply(session=session)
