@@ -38,86 +38,137 @@ def handle_stage(session: Session) -> StageReply:
     """
     current_state = session.state
 
-    if current_state not in {
-        ClassificationState.EVALUATING.value,
-        ClassificationState.AMBIGUOUS.value,
-    }:
-        session.state = ClassificationState.CANCELLED.value
-        session.cancelled = True
-        session.evaluation_message = (
-            "Classification result: invalid internal state. The stage received "
-            "an unexpected classification state."
-        )
-        session.coach_message = (
-            "I can't continue because the classification stage entered an "
-            "unexpected state."
-        )
-        session.debug_message = _join_debug_lines(
-            "classification_stage_error=unexpected_state",
-            f"classification_state_in={current_state}",
-            f"classification_state_out={session.state}",
-        )
-        return StageReply(session=session)
+    match current_state:
+        case "evaluating":
+            result = engine.classify(session)
+            session.evaluation_message = result["evaluation_message"]
 
-    result = engine.classify(session)
-    session.evaluation_message = result["evaluation_message"]
+            match result["outcome"]:
+                case "valid":
+                    session.state = ClassificationState.COMPLETED.value
+                    session.cancelled = False
+                    session.coach_message = result["coach_message"]
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=evaluating_to_completed",
+                        "classification_resolution=accepted",
+                        f"classification_state_out={session.state}",
+                        f"next_stage={Stage.COACHING.value}",
+                    )
+                    return StageReply(session=session, next_stage=Stage.COACHING)
 
-    if result["outcome"] == "valid":
-        session.state = ClassificationState.COMPLETED.value
-        session.cancelled = False
-        session.coach_message = result["coach_message"]
-        session.debug_message = _join_debug_lines(
-            result["debug_message"],
-            f"classification_transition={current_state}_to_completed",
-            "classification_resolution=accepted",
-            f"classification_state_out={session.state}",
-            f"next_stage={Stage.COACHING.value}",
-        )
-        return StageReply(session=session, next_stage=Stage.COACHING)
+                case "ambiguous":
+                    session.state = ClassificationState.AMBIGUOUS.value
+                    session.cancelled = False
+                    session.coach_message = result["coach_message"]
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=evaluating_to_ambiguous",
+                        "classification_resolution=needs_clarification",
+                        f"classification_state_out={session.state}",
+                    )
+                    return StageReply(session=session)
 
-    if current_state == ClassificationState.AMBIGUOUS.value:
-        session.state = ClassificationState.CANCELLED.value
-        session.cancelled = True
-        session.evaluation_message = (
-            "Classification result: cancelled after clarification. "
-            f"The follow-up still did not resolve the intake. Underlying "
-            f"decision: {result['evaluation_message']}"
-        )
-        session.coach_message = (
-            "I still can't identify a clear coaching issue from the "
-            "clarification, so I'll stop here rather than keep looping. "
-            "Please start a new session with the specific decision, "
-            "challenge, or conflict you want to work on."
-        )
-        session.debug_message = _join_debug_lines(
-            result["debug_message"],
-            "classification_transition=ambiguous_to_cancelled",
-            "bounded_ambiguity_triggered=true",
-            "classification_resolution=rejected_after_clarification",
-            f"classification_state_out={session.state}",
-        )
-        return StageReply(session=session)
+                case "invalid":
+                    session.state = ClassificationState.CANCELLED.value
+                    session.cancelled = True
+                    session.coach_message = result["coach_message"]
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=evaluating_to_cancelled",
+                        "classification_resolution=rejected",
+                        f"classification_state_out={session.state}",
+                    )
+                    return StageReply(session=session)
 
-    if result["outcome"] == "ambiguous":
-        session.state = ClassificationState.AMBIGUOUS.value
-        session.cancelled = False
-        session.coach_message = result["coach_message"]
-        session.debug_message = _join_debug_lines(
-            result["debug_message"],
-            "classification_transition=evaluating_to_ambiguous",
-            "classification_resolution=needs_clarification",
-            f"classification_state_out={session.state}",
-        )
-        return StageReply(session=session)
+                case _:
+                    session.state = ClassificationState.CANCELLED.value
+                    session.cancelled = True
+                    session.coach_message = (
+                        "I can't continue because classification returned an "
+                        "unexpected result."
+                    )
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=evaluating_to_cancelled",
+                        "classification_resolution=unexpected_engine_outcome",
+                        f"classification_outcome={result['outcome']}",
+                        f"classification_state_out={session.state}",
+                    )
+                    return StageReply(session=session)
 
-    session.state = ClassificationState.CANCELLED.value
-    session.cancelled = True
-    session.coach_message = result["coach_message"]
-    session.debug_message = _join_debug_lines(
-        result["debug_message"],
-        f"classification_transition={current_state}_to_cancelled",
-        "classification_resolution=rejected",
-        f"classification_state_out={session.state}",
-    )
+        case "ambiguous":
+            result = engine.classify(session)
+            session.evaluation_message = result["evaluation_message"]
 
-    return StageReply(session=session)
+            match result["outcome"]:
+                case "valid":
+                    session.state = ClassificationState.COMPLETED.value
+                    session.cancelled = False
+                    session.coach_message = result["coach_message"]
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=ambiguous_to_completed",
+                        "classification_resolution=accepted_after_clarification",
+                        f"classification_state_out={session.state}",
+                        f"next_stage={Stage.COACHING.value}",
+                    )
+                    return StageReply(session=session, next_stage=Stage.COACHING)
+
+                case "ambiguous" | "invalid":
+                    session.state = ClassificationState.CANCELLED.value
+                    session.cancelled = True
+                    session.evaluation_message = (
+                        "Classification result: cancelled after clarification. "
+                        f"The follow-up still did not resolve the intake. "
+                        f"Underlying decision: {result['evaluation_message']}"
+                    )
+                    session.coach_message = (
+                        "I still can't identify a clear coaching issue from "
+                        "the clarification, so I'll stop here rather than keep "
+                        "looping. Please start a new session with the specific "
+                        "decision, challenge, or conflict you want to work on."
+                    )
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=ambiguous_to_cancelled",
+                        "bounded_ambiguity_triggered=true",
+                        "classification_resolution=rejected_after_clarification",
+                        f"classification_state_out={session.state}",
+                    )
+                    return StageReply(session=session)
+
+                case _:
+                    session.state = ClassificationState.CANCELLED.value
+                    session.cancelled = True
+                    session.coach_message = (
+                        "I can't continue because classification returned an "
+                        "unexpected result."
+                    )
+                    session.debug_message = _join_debug_lines(
+                        result["debug_message"],
+                        "classification_transition=ambiguous_to_cancelled",
+                        "bounded_ambiguity_triggered=true",
+                        "classification_resolution=unexpected_engine_outcome",
+                        f"classification_outcome={result['outcome']}",
+                        f"classification_state_out={session.state}",
+                    )
+                    return StageReply(session=session)
+
+        case _:
+            session.state = ClassificationState.CANCELLED.value
+            session.cancelled = True
+            session.evaluation_message = (
+                "Classification result: invalid internal state. The stage "
+                "received an unexpected classification state."
+            )
+            session.coach_message = (
+                "I can't continue because the classification stage entered an "
+                "unexpected state."
+            )
+            session.debug_message = _join_debug_lines(
+                "classification_stage_error=unexpected_state",
+                f"classification_state_in={current_state}",
+                f"classification_state_out={session.state}",
+            )
+            return StageReply(session=session)

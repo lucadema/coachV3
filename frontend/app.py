@@ -55,11 +55,6 @@ def WriteLog(message: str) -> None:
     st.session_state.log_messages.append(str(message))
 
 
-def ClearLog() -> None:
-    """Clear the sidebar log."""
-    st.session_state.log_messages = []
-
-
 # ============================================================================
 # API calling points
 # ============================================================================
@@ -203,7 +198,7 @@ def RenderLogPanel() -> None:
             LoadDebugTraceIntoLog()
     with col2:
         if st.button("Clear log", key="clear_log"):
-            ClearLog()
+            st.session_state.log_messages = []
 
     st.sidebar.markdown("---")
 

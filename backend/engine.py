@@ -115,25 +115,6 @@ DEFAULT_CLASSIFICATION_CONFIG: dict[str, Any] = {
 }
 
 
-def _format_history(session: Session) -> str:
-    """Format a small visible chat-history window for prompt construction."""
-    if not session.chat_history:
-        return "No prior chat history."
-
-    return "\n".join(
-        f"{message.role.value}: {message.message}"
-        for message in session.chat_history[-6:]
-    )
-
-
-def _truncate_debug_value(value: str, limit: int = 240) -> str:
-    """Keep debug payloads readable without hiding the prompt entirely."""
-    compact = " ".join(value.split())
-    if len(compact) <= limit:
-        return compact
-    return f"{compact[:limit]}..."
-
-
 class Engine:
     """Minimal engine with real support for the Classification slice."""
 
@@ -169,15 +150,17 @@ class Engine:
         Classification now uses YAML-backed prompt/config assets; other stages
         still fall back to a simple scaffold prompt.
         """
-        if session.stage == "classification":
-            config, _ = self._load_stage_config("classification")
-            return self._build_classification_prompt(session, config)
+        match session.stage:
+            case "classification":
+                config, _ = self._load_stage_config("classification")
+                return self._build_classification_prompt(session, config)
 
-        return (
-            f"stage={session.stage}\n"
-            f"state={session.state}\n"
-            f"user_message={session.user_message}"
-        )
+            case _:
+                return (
+                    f"stage={session.stage}\n"
+                    f"state={session.state}\n"
+                    f"user_message={session.user_message}"
+                )
 
     def _build_classification_prompt(
         self,
@@ -193,6 +176,12 @@ class Engine:
             f"- {name}: {description}"
             for name, description in criteria.items()
         )
+        chat_history = "No prior chat history."
+        if session.chat_history:
+            chat_history = "\n".join(
+                f"{message.role.value}: {message.message}"
+                for message in session.chat_history[-6:]
+            )
 
         return "\n\n".join(
             [
@@ -204,7 +193,7 @@ class Engine:
                 "output_schema:",
                 str(prompt_config.get("output_schema", "")),
                 "chat_history:",
-                _format_history(session),
+                chat_history,
                 f"latest_user_message: {session.user_message or ''}",
             ]
         )
@@ -284,6 +273,9 @@ class Engine:
         config, config_debug = self._load_stage_config("classification")
         prompt = self._build_classification_prompt(session, config)
         outputs = config.get("outputs", {})
+        prompt_preview = " ".join(prompt.split())
+        if len(prompt_preview) > 240:
+            prompt_preview = f"{prompt_preview[:240]}..."
 
         try:
             parsed = self._classify_with_rules(session.user_message or "", config)
@@ -318,7 +310,7 @@ class Engine:
                     "matched_coaching_keyword="
                     f"{parsed['matched_coaching_keyword'] or 'none'}"
                 ),
-                f"prompt_preview={_truncate_debug_value(prompt)}",
+                f"prompt_preview={prompt_preview}",
             ]
 
             return {
@@ -357,26 +349,30 @@ class Engine:
                         "parse_status=fallback_due_to_error",
                         f"classification_error={exc!r}",
                         "classification_outcome=ambiguous",
-                        f"prompt_preview={_truncate_debug_value(prompt)}",
+                        f"prompt_preview={prompt_preview}",
                     ]
                 ),
             }
 
     def evaluate(self, session: Session) -> str:
         """Return the latest evaluation message supported by the engine."""
-        if session.stage == "classification":
-            return self.classify(session)["evaluation_message"]
+        match session.stage:
+            case "classification":
+                return self.classify(session)["evaluation_message"]
 
-        _ = self.build_prompt(session)
-        return "TODO: engine evaluation not implemented yet."
+            case _:
+                _ = self.build_prompt(session)
+                return "TODO: engine evaluation not implemented yet."
 
     def coach(self, session: Session) -> str:
         """Return the latest coach-facing message supported by the engine."""
-        if session.stage == "classification":
-            return self.classify(session)["coach_message"]
+        match session.stage:
+            case "classification":
+                return self.classify(session)["coach_message"]
 
-        _ = self.build_prompt(session)
-        return "TODO: engine coach message not implemented yet."
+            case _:
+                _ = self.build_prompt(session)
+                return "TODO: engine coach message not implemented yet."
 
 
 engine = Engine()
