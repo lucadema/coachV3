@@ -77,8 +77,54 @@ def test_stage_signatures() -> None:
         check(params == ["session"], f"{name}.handle_stage signature is {sig}")
 
 
+def test_classification_engine_contract_normalization() -> None:
+    banner("3. Classification engine contract normalization")
+
+    original_evaluate = classification.evaluate
+
+    def incomplete_engine_output(**_kwargs: object) -> dict[str, str]:
+        return {
+            "coach_message": "Raw parser fallback.",
+            "debug_message": "structured_parse_status=failed_no_json_object",
+        }
+
+    classification.evaluate = incomplete_engine_output
+    try:
+        session = Session(
+            session_id="classification-contract-normalization",
+            stage=Stage.CLASSIFICATION.value,
+            state=ClassificationState.EVALUATING.value,
+            user_message="This simulates incomplete structured engine output.",
+        )
+
+        reply = classification.handle_stage(session)
+        updated = reply.session
+
+        check(
+            updated.state == ClassificationState.CANCELLED.value,
+            "Incomplete engine output is rejected instead of crashing",
+        )
+        check(
+            updated.cancelled is True,
+            "Incomplete engine output cancels the classification session",
+        )
+        check(
+            updated.evaluation_message is not None
+            and "without an evaluation_message" in updated.evaluation_message,
+            "Incomplete engine output receives an explicit evaluation fallback",
+        )
+        check(
+            updated.debug_message is not None
+            and "classification_engine_missing_fields=classification_label,evaluation_message"
+            in updated.debug_message,
+            "Incomplete engine output surfaces missing fields in debug output",
+        )
+    finally:
+        classification.evaluate = original_evaluate
+
+
 def test_controller_transition_initial_states() -> None:
-    banner("3. Controller transition initial-state mapping")
+    banner("4. Controller transition initial-state mapping")
 
     cases = [
         (Stage.CLASSIFICATION, ClassificationState.EVALUATING.value),
@@ -121,7 +167,7 @@ def test_controller_transition_initial_states() -> None:
 
 
 def test_controller_classification_flows() -> dict[str, str]:
-    banner("4. Controller classification flow smoke test")
+    banner("5. Controller classification flow smoke test")
 
     state_store.clear()
 
@@ -315,7 +361,7 @@ def test_controller_classification_flows() -> dict[str, str]:
 
 
 def test_api_flow() -> str:
-    banner("5. FastAPI in-process smoke test")
+    banner("6. FastAPI in-process smoke test")
 
     state_store.clear()
     client = TestClient(app)
@@ -390,7 +436,7 @@ def test_api_flow() -> str:
 
 
 def test_negative_api_cases() -> None:
-    banner("6. Negative API tests")
+    banner("7. Negative API tests")
 
     client = TestClient(app)
 
@@ -412,6 +458,7 @@ def main() -> None:
 
     test_imports()
     test_stage_signatures()
+    test_classification_engine_contract_normalization()
     test_controller_transition_initial_states()
     controller_session_ids = test_controller_classification_flows()
     api_session_id = test_api_flow()

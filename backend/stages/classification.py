@@ -11,14 +11,128 @@ classification FSM and uses backend.engine for prompt/config loading plus
 deterministic first-slice classification support.
 """
 
-from backend.engine import engine
+from pathlib import Path
+
+from backend.engine import evaluate
 from backend.enums import ClassificationState, Stage
 from backend.models import Session, StageReply
+
+
+STAGE_YAML_PATH = (
+    Path(__file__).resolve().parents[1] / "config" / "classification.yaml"
+)
+
+CLASSIFICATION_OUTPUT_INSTRUCTION = """
+Return JSON only with exactly these keys:
+- classification_label: one of VALID, AMBIGUOUS, OUT_OF_SCOPE, DISTRESS
+- evaluation_message: concise internal evaluation summary
+- coach_message: concise user-facing classification response
+- debug_message: concise trace/debug detail
+"""
+
+OUTCOME_BY_CLASSIFICATION_LABEL = {
+    "valid": "valid",
+    "ambiguous": "ambiguous",
+    "invalid": "invalid",
+    "out_of_scope": "invalid",
+    "distress": "invalid",
+}
+
+DEFAULT_COACH_MESSAGE_BY_LABEL = {
+    "valid": (
+        "Thanks. That sounds like a real situation we can work through, so "
+        "let's begin."
+    ),
+    "ambiguous": (
+        "I can help, but I need one clearer sentence about the decision, "
+        "challenge, or conflict you want coaching on."
+    ),
+    "invalid": (
+        "I can't continue this session because the opening message does not "
+        "describe a coaching issue I can work on here."
+    ),
+    "out_of_scope": (
+        "I can't continue this session because the opening message is outside "
+        "the coaching issue this process is designed for."
+    ),
+    "distress": (
+        "I can't continue this coaching flow because the message sounds better "
+        "suited to immediate wellbeing support than this process."
+    ),
+}
 
 
 def _join_debug_lines(*lines: str) -> str:
     """Build a readable debug trace without dropping earlier details."""
     return "\n".join(line for line in lines if line)
+
+
+def _evaluate_classification(session: Session) -> dict:
+    """Evaluate classification and normalize the result for the local FSM."""
+    result = evaluate(
+        stage_yaml_path=STAGE_YAML_PATH,
+        state_name=session.state,
+        user_message=session.user_message,
+        history=session.chat_history,
+        context=session.stage_context,
+        output_instruction=CLASSIFICATION_OUTPUT_INSTRUCTION,
+        structured=True,
+    )
+
+    if not isinstance(result, dict):
+        return {
+            "outcome": "invalid",
+            "evaluation_message": (
+                "Classification result: invalid engine output. The engine "
+                "returned plain text where structured output was required."
+            ),
+            "coach_message": (
+                "I can't continue because classification returned an "
+                "unexpected response."
+            ),
+            "debug_message": (
+                "classification_engine_error=plain_text_output "
+                f"engine_output={result}"
+            ),
+        }
+
+    raw_outcome = str(
+        result.get("outcome")
+        or result.get("classification_label")
+        or "invalid"
+    ).strip().lower()
+    outcome = OUTCOME_BY_CLASSIFICATION_LABEL.get(raw_outcome, raw_outcome)
+    missing_fields = []
+    if not (result.get("outcome") or result.get("classification_label")):
+        missing_fields.append("classification_label")
+    missing_fields.extend(
+        field
+        for field in ("evaluation_message", "coach_message", "debug_message")
+        if not result.get(field)
+    )
+
+    result["outcome"] = outcome
+    result["evaluation_message"] = result.get("evaluation_message") or (
+        f"Classification result: {outcome}. Engine label: {raw_outcome}. The "
+        "engine returned structured output without an evaluation_message."
+    )
+    result["coach_message"] = (
+        result.get("coach_message")
+        or DEFAULT_COACH_MESSAGE_BY_LABEL.get(raw_outcome)
+        or DEFAULT_COACH_MESSAGE_BY_LABEL.get(outcome)
+        or "I can't continue because classification returned an unexpected result."
+    )
+    result["debug_message"] = _join_debug_lines(
+        str(result.get("debug_message") or "classification_engine_debug=missing"),
+        (
+            f"classification_engine_missing_fields={','.join(missing_fields)}"
+            if missing_fields
+            else ""
+        ),
+        f"classification_raw_outcome={raw_outcome}",
+        f"classification_normalized_outcome={outcome}",
+    )
+    return result
 
 
 def handle_stage(session: Session) -> StageReply:
@@ -40,7 +154,7 @@ def handle_stage(session: Session) -> StageReply:
 
     match current_state:
         case "evaluating":
-            result = engine.classify(session)
+            result = _evaluate_classification(session)
             session.evaluation_message = result["evaluation_message"]
 
             match result["outcome"]:
@@ -98,7 +212,7 @@ def handle_stage(session: Session) -> StageReply:
                     return StageReply(session=session)
 
         case "ambiguous":
-            result = engine.classify(session)
+            result = _evaluate_classification(session)
             session.evaluation_message = result["evaluation_message"]
 
             match result["outcome"]:
