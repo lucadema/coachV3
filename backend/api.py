@@ -90,5 +90,11 @@ def debug_trace(session_id: str) -> DebugReply:
 
     return DebugReply(
         session=_build_session_view(session),
+        user_message=session.user_message,
+        evaluation_message=session.evaluation_message,
+        coach_message=session.coach_message,
         debug_message=session.debug_message,
+        turn_count=session.turn_count,
+        stage_turn_count=session.stage_turn_count,
+        stage_context=session.stage_context,
     )

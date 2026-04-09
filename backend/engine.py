@@ -40,14 +40,15 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 import yaml
 
 
 LLM_ENABLED_VALUES = {"1", "true", "yes", "on"}
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 
 # ============================================================================
@@ -59,7 +60,8 @@ def _load_stage_config(path: str | Path) -> dict[str, Any]:
     Load one stage YAML file and return the raw mapping.
 
     The engine expects each stage file to follow the V3 template shape:
-    - experience
+    - meta
+    - common
     - stage
     - states
 
@@ -106,31 +108,25 @@ def _assemble_prompt(
     Description fields are intentionally ignored.
 
     Evaluation order:
-    1. experience.prompt_preamble
-    2. experience.role
-    3. experience.global_rules
-    4. experience.shared_output_rules
-    5. experience.evaluation
-    6. stage.prompt_preamble
-    7. stage.purpose
-    8. stage.rules
-    9. stage.shared_output_rules
-    10. stage.evaluation
-    11. states.<state>.prompt_preamble
-    12. states.<state>.purpose
-    13. states.<state>.rules
-    14. states.<state>.shared_output_rules
-    15. states.<state>.evaluation
+    1. common.preamble
+    2. common.role
+    3. common.rules
+    4. common.output_spec
+    5. stage.purpose
+    6. stage.rules
+    7. stage.evaluation
+    8. states.<state>.purpose
+    9. states.<state>.evaluation
 
     Coaching uses the same order, replacing evaluation with coaching.
     """
-    experience = config.get("experience", {})
+    common = config.get("common", {})
     stage = config.get("stage", {})
     states = config.get("states", {})
     state = states.get(state_name, {})
 
-    if not isinstance(experience, dict):
-        experience = {}
+    if not isinstance(common, dict):
+        common = {}
     if not isinstance(stage, dict):
         stage = {}
     if not isinstance(states, dict):
@@ -142,20 +138,14 @@ def _assemble_prompt(
         raise ValueError(f"Unknown interaction_type: {interaction_type}")
 
     parts = [
-        _get_text(experience, "prompt_preamble"),
-        _get_text(experience, "role"),
-        _get_text(experience, "global_rules"),
-        _get_text(experience, "shared_output_rules"),
-        _get_text(experience, interaction_type),
-        _get_text(stage, "prompt_preamble"),
+        _get_text(common, "preamble"),
+        _get_text(common, "role"),
+        _get_text(common, "rules"),
+        _get_text(common, "output_spec"),
         _get_text(stage, "purpose"),
         _get_text(stage, "rules"),
-        _get_text(stage, "shared_output_rules"),
         _get_text(stage, interaction_type),
-        _get_text(state, "prompt_preamble"),
         _get_text(state, "purpose"),
-        _get_text(state, "rules"),
-        _get_text(state, "shared_output_rules"),
         _get_text(state, interaction_type),
     ]
 
@@ -311,147 +301,6 @@ def _extract_output(raw_output: str, structured: bool) -> dict[str, Any] | str:
 
 
 # ============================================================================
-# Temporary Offline Fallback
-# ============================================================================
-
-def _classification_fallback_output(user_message: str | None) -> dict[str, str]:
-    """
-    Offline deterministic fallback for the existing Classification smoke path.
-
-    This preserves local tests until live LLM calls are enabled. It is not a
-    replacement for the new YAML prompt assembly and should stay outside stage
-    FSM decisions.
-    """
-    normalized = " ".join((user_message or "").strip().lower().split())
-    tokens = re.findall(r"[a-z']+", normalized)
-
-    coaching_keywords = [
-        "work",
-        "career",
-        "manager",
-        "team",
-        "relationship",
-        "conflict",
-        "stress",
-        "overwhelmed",
-        "burnout",
-        "decision",
-        "decide",
-        "goal",
-        "priorities",
-        "communication",
-        "boundaries",
-    ]
-    ambiguous_keywords = [
-        "help",
-        "advice",
-        "stuck",
-        "unsure",
-        "not sure",
-        "something",
-        "issue",
-        "problem",
-    ]
-    invalid_keywords = [
-        "weather",
-        "joke",
-        "recipe",
-        "sports score",
-        "stock price",
-        "movie review",
-        "trivia",
-    ]
-
-    matched_invalid_keyword = next(
-        (keyword for keyword in invalid_keywords if keyword in normalized),
-        None,
-    )
-    matched_ambiguous_keyword = next(
-        (keyword for keyword in ambiguous_keywords if keyword in normalized),
-        None,
-    )
-    matched_coaching_keyword = next(
-        (keyword for keyword in coaching_keywords if keyword in normalized),
-        None,
-    )
-
-    if matched_invalid_keyword:
-        label = "invalid"
-        reason = f"matched invalid topic keyword '{matched_invalid_keyword}'"
-    elif len(tokens) < 6:
-        label = "ambiguous"
-        reason = (
-            f"message only contains {len(tokens)} word(s), which is below "
-            "the valid threshold of 6"
-        )
-    elif matched_coaching_keyword:
-        label = "valid"
-        reason = (
-            f"matched coaching keyword '{matched_coaching_keyword}' "
-            "with enough detail"
-        )
-    elif matched_ambiguous_keyword and len(tokens) < 9:
-        label = "ambiguous"
-        reason = (
-            f"matched ambiguity keyword '{matched_ambiguous_keyword}' "
-            "and still lacks context"
-        )
-    else:
-        label = "ambiguous"
-        reason = "message does not yet clearly describe a coaching issue"
-
-    messages = {
-        "valid": {
-            "evaluation": (
-                "Classification result: valid. The opening message contains "
-                "a coaching-suitable issue with enough context to proceed."
-            ),
-            "coach": (
-                "Thanks. That sounds like a real situation we can work "
-                "through, so let's begin."
-            ),
-        },
-        "ambiguous": {
-            "evaluation": (
-                "Classification result: ambiguous. The opening message may "
-                "be coaching-relevant, but it still needs clarification."
-            ),
-            "coach": (
-                "I can help, but I need one clearer sentence about the "
-                "decision, challenge, or conflict you want coaching on."
-            ),
-        },
-        "invalid": {
-            "evaluation": (
-                "Classification result: invalid. The opening message does "
-                "not fit the coaching intake flow."
-            ),
-            "coach": (
-                "I can't continue this session because the opening message "
-                "does not describe a coaching issue I can work on here."
-            ),
-        },
-    }
-
-    return {
-        "classification_label": label,
-        "evaluation_message": f"{messages[label]['evaluation']} Reason: {reason}.",
-        "coach_message": messages[label]["coach"],
-        "debug_message": "\n".join(
-            [
-                "classification_engine=offline_fallback_v1",
-                "parse_status=offline_fallback",
-                f"classification_outcome={label}",
-                f"classification_reason={reason}",
-                f"matched_invalid_keyword={matched_invalid_keyword or 'none'}",
-                f"matched_ambiguous_keyword={matched_ambiguous_keyword or 'none'}",
-                f"matched_coaching_keyword={matched_coaching_keyword or 'none'}",
-            ]
-        ),
-    }
-
-
-# ============================================================================
 # Debug Helpers
 # ============================================================================
 
@@ -472,6 +321,87 @@ def _prompt_preview(prompt: str) -> str:
     if len(preview) <= 240:
         return preview
     return f"{preview[:240]}..."
+
+
+def _raw_llm_reply_debug(interaction_type: str, raw_output: str | None) -> str:
+    """Return the full raw LLM reply with clear debug boundaries."""
+    if raw_output is None:
+        return f"{interaction_type}_llm_reply_raw=<none>"
+
+    return "\n".join(
+        [
+            f"{interaction_type}_llm_reply_raw_begin",
+            raw_output,
+            f"{interaction_type}_llm_reply_raw_end",
+        ]
+    )
+
+
+def _full_prompt_debug(interaction_type: str, prompt: str) -> str:
+    """Return the full prompt with clear debug boundaries."""
+    return "\n".join(
+        [
+            f"{interaction_type}_prompt_full_begin",
+            prompt,
+            f"{interaction_type}_prompt_full_end",
+        ]
+    )
+
+
+# ============================================================================
+# Public API Helpers
+# ============================================================================
+
+def _run_interaction(
+    interaction_type: str,
+    stage_yaml_path: str | Path,
+    state_name: str,
+    user_message: str | None,
+    history: list[Any] | None = None,
+    context: dict[str, Any] | None = None,
+    output_instruction: str | None = None,
+    structured: bool = True,
+    no_output_structured: dict[str, Any] | None = None,
+    no_output_plain: str | None = None,
+) -> dict[str, Any] | str:
+    """Run one engine interaction while keeping evaluate/coach wrappers thin."""
+    config_path = Path(stage_yaml_path)
+    config = _load_stage_config(config_path)
+    yaml_prompt = _assemble_prompt(config, state_name, interaction_type)
+    prompt = _append_runtime_context(
+        prompt=yaml_prompt,
+        user_message=user_message,
+        history=history,
+        context=context,
+        output_instruction=output_instruction,
+    )
+
+    raw_output, llm_debug = _call_llm(prompt)
+
+    if raw_output:
+        output = _extract_output(raw_output, structured=structured)
+    elif not structured and no_output_plain is not None:
+        return no_output_plain
+    else:
+        output = no_output_structured or {
+            "debug_message": "structured_parse_status=no_llm_output",
+        }
+
+    if not isinstance(output, dict):
+        return output
+
+    return _with_debug(
+        output,
+        [
+            f"config_status=loaded config_path={config_path}",
+            llm_debug,
+            _raw_llm_reply_debug(interaction_type, raw_output),
+            f"stage_state={state_name}",
+            f"interaction_type={interaction_type}",
+            _full_prompt_debug(interaction_type, prompt),
+            f"prompt_preview={_prompt_preview(prompt)}",
+        ],
+    )
 
 
 # ============================================================================
@@ -495,47 +425,24 @@ def evaluate(
     - pass the current local state name explicitly
     - pass runtime payload separately from YAML text
     - request structured output with structured=True when the stage module needs
-      fields such as evaluation_message, coach_message, or classification_label
+      fields such as evaluation_message or other stage-specific evaluation data
 
     The returned object is a dict when structured=True and extraction succeeds.
     The engine does not decide what state transition should happen next.
     """
-    config_path = Path(stage_yaml_path)
-    config = _load_stage_config(config_path)
-    yaml_prompt = _assemble_prompt(config, state_name, "evaluation")
-    prompt = _append_runtime_context(
-        prompt=yaml_prompt,
+    return _run_interaction(
+        interaction_type="evaluation",
+        stage_yaml_path=stage_yaml_path,
+        state_name=state_name,
         user_message=user_message,
         history=history,
         context=context,
         output_instruction=output_instruction,
-    )
-
-    raw_output, llm_debug = _call_llm(prompt)
-
-    if raw_output:
-        output = _extract_output(raw_output, structured=structured)
-    elif config_path.stem == "classification" and structured:
-        output = _classification_fallback_output(user_message)
-    else:
-        output = {
+        structured=structured,
+        no_output_structured={
             "evaluation_message": "TODO: engine evaluation not implemented yet.",
-            "coach_message": None,
             "debug_message": "structured_parse_status=no_llm_output",
-        }
-
-    if not isinstance(output, dict):
-        return output
-
-    return _with_debug(
-        output,
-        [
-            f"config_status=loaded config_path={config_path}",
-            llm_debug,
-            f"stage_state={state_name}",
-            f"interaction_type=evaluation",
-            f"prompt_preview={_prompt_preview(prompt)}",
-        ],
+        },
     )
 
 
@@ -555,39 +462,18 @@ def coach(
     defaults to plain text output because coaching replies are usually
     user-facing messages.
     """
-    config_path = Path(stage_yaml_path)
-    config = _load_stage_config(config_path)
-    yaml_prompt = _assemble_prompt(config, state_name, "coaching")
-    prompt = _append_runtime_context(
-        prompt=yaml_prompt,
+    return _run_interaction(
+        interaction_type="coaching",
+        stage_yaml_path=stage_yaml_path,
+        state_name=state_name,
         user_message=user_message,
         history=history,
         context=context,
         output_instruction=output_instruction,
-    )
-
-    raw_output, llm_debug = _call_llm(prompt)
-
-    if raw_output:
-        output = _extract_output(raw_output, structured=structured)
-    elif structured:
-        output = {
+        structured=structured,
+        no_output_structured={
             "coach_message": "TODO: engine coach message not implemented yet.",
             "debug_message": "structured_parse_status=no_llm_output",
-        }
-    else:
-        return "TODO: engine coach message not implemented yet."
-
-    if not isinstance(output, dict):
-        return output
-
-    return _with_debug(
-        output,
-        [
-            f"config_status=loaded config_path={config_path}",
-            llm_debug,
-            f"stage_state={state_name}",
-            f"interaction_type=coaching",
-            f"prompt_preview={_prompt_preview(prompt)}",
-        ],
+        },
+        no_output_plain="TODO: engine coach message not implemented yet.",
     )

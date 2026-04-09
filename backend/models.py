@@ -60,6 +60,9 @@ class Session(BaseModel):
     chat_history: list[ChatMessage] = Field(default_factory=list)
     stage_context: dict[str, Any] = Field(default_factory=dict)
 
+    turn_count: int = 0
+    stage_turn_count: int = 0
+
     cancelled: bool = False
     completed: bool = False
 
@@ -115,7 +118,13 @@ class DebugReply(BaseModel):
     """
 
     session: SessionView
+    user_message: str | None = None
+    evaluation_message: str | None = None
+    coach_message: str | None = None
     debug_message: str | None = None
+    turn_count: int = 0
+    stage_turn_count: int = 0
+    stage_context: dict[str, Any] = Field(default_factory=dict)
 
 
 # ============================================================================
@@ -130,9 +139,14 @@ class StageReply(BaseModel):
     Rules:
     - session contains the updated in-memory session
     - next_stage requests a macro-stage transition
+    - run_coaching asks controller to call engine.coach(...) for this stage/state
+    - continue_turn asks controller to keep processing the current turn after a
+      deterministic transition
     - if next_stage is None, controller keeps the current macro-stage unless
       the updated session itself has been cancelled or completed
     """
 
     session: Session
     next_stage: Stage | None = None
+    run_coaching: bool = False
+    continue_turn: bool = False

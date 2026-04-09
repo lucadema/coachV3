@@ -1,69 +1,51 @@
-experience:
+meta:
+  stage: <stage_name>
   description: >
-    Human-readable description of the overall experience. This field is for
-    maintainers and documentation and is not included in prompt assembly.
+    Short human-readable description of the stage.
 
-  prompt_preamble: >
-    Common opening text added at the start of every prompt.
+common:
+  preamble: >
+    Text always placed at the start of prompts for this stage file.
 
   role: >
-    Common role definition added after the common preamble.
-
-  global_rules: >
-    Common behavioural rules added after the role text.
-
-  shared_output_rules: >
-    Common output rules added after the global rules.
-
-  evaluation: >
-    Additional text appended only when building an evaluation prompt.
-
-  coaching: >
-    Additional text appended only when building a coaching prompt.
-
-stage:
-  description: >
-    Human-readable description of this stage. This field is for maintainers and
-    documentation and is not included in prompt assembly.
-
-  prompt_preamble: >
-    Stage-wide opening text added to every prompt in this stage.
-
-  purpose: >
-    Stage-wide purpose text added after the stage preamble.
+    Common role text for this stage file.
 
   rules: >
-    Stage-wide behavioural rules added after the stage purpose.
+    Common rules for this stage file.
 
-  shared_output_rules: >
-    Stage-wide output rules added after the stage rules.
+  output_spec: >
+    Common output instructions for this stage file.
+
+stage:
+  purpose: >
+    What this stage is trying to achieve.
+
+  rules: >
+    Additional stage-wide rules.
 
   evaluation: >
-    Additional text appended only when building an evaluation prompt for this stage.
+    Stage-wide evaluation instructions.
 
   coaching: >
-    Additional text appended only when building a coaching prompt for this stage.
+    Stage-wide coaching instructions.
 
 states:
-  state_name:
-    description: >
-      Human-readable description of this state. This field is for maintainers and
-      documentation and is not included in prompt assembly.
-
-    prompt_preamble: >
-      State-specific opening text added to every prompt in this state.
-
+  <state_name_1>:
     purpose: >
-      State-specific purpose text added after the state preamble.
-
-    rules: >
-      State-specific behavioural rules added after the state purpose.
-
-    shared_output_rules: >
-      State-specific output rules added after the state rules.
+      What this state is trying to achieve.
 
     evaluation: >
-      Additional text appended only when building an evaluation prompt for this state.
+      State-specific evaluation instructions.
 
     coaching: >
-      Additional text appended only when building a coaching prompt for this state.
+      State-specific coaching instructions.
+
+  <state_name_2>:
+    purpose: >
+      What this state is trying to achieve.
+
+    evaluation: >
+      State-specific evaluation instructions.
+
+    coaching: >
+      State-specific coaching instructions.

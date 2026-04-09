@@ -1,11 +1,15 @@
-"""Regression smoke test for the first real functional slice of Coach V3."""
+"""Regression smoke test for the Coach V3.1 execution model."""
 
 from __future__ import annotations
 
+import os
 from inspect import signature
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from fastapi.testclient import TestClient
 
+from backend import engine
 from backend.api import app
 from backend.controller import (
     _apply_macro_stage_transition,
@@ -20,11 +24,15 @@ from backend.enums import (
     CoachingState,
     PathwaysState,
     Stage,
+    StateType,
     SynthesisState,
 )
-from backend.models import DebugReply, Session, SessionView, StageReply, UserMsgReply
-from backend.state_store import state_store
+from backend.models import ChatMessage, DebugReply, Session, SessionView, StageReply, UserMsgReply
+from backend.state_store import StateStore, state_store
 from backend.stages import classification, closure, coaching, pathways, synthesis
+
+
+os.environ["COACHV3_USE_LLM"] = "0"
 
 
 def banner(title: str) -> None:
@@ -39,11 +47,31 @@ def check(condition: bool, message: str) -> None:
     print(f"OK: {message}")
 
 
+def make_session(
+    session_id: str,
+    stage: Stage,
+    state: str,
+    user_message: str | None = None,
+    chat_history: list[ChatMessage] | None = None,
+) -> Session:
+    """Create and persist a test session with the given stage/state."""
+    session = Session(
+        session_id=session_id,
+        stage=stage.value,
+        state=state,
+        user_message=user_message,
+        chat_history=chat_history or [],
+    )
+    state_store.save_session(session)
+    return session
+
+
 def test_imports() -> None:
     banner("1. Import smoke test")
 
     check(app.title == "Coach V3 API", "FastAPI app imports correctly")
     check(Stage.CLASSIFICATION.value == "classification", "Stage enum is available")
+    check(StateType.EVALUATIVE.value == "evaluative", "StateType enum is available")
     check(
         ClassificationState.EVALUATING.value == "evaluating",
         "ClassificationState enum is available",
@@ -58,73 +86,247 @@ def test_imports() -> None:
     check(UserMsgReply.__name__ == "UserMsgReply", "UserMsgReply model is available")
     check(DebugReply.__name__ == "DebugReply", "DebugReply model is available")
     check(StageReply.__name__ == "StageReply", "StageReply model is available")
+    check("turn_count" in Session.model_fields, "Session has turn_count")
+    check("stage_turn_count" in Session.model_fields, "Session has stage_turn_count")
+    check("run_coaching" in StageReply.model_fields, "StageReply has run_coaching")
+    check("continue_turn" in StageReply.model_fields, "StageReply has continue_turn")
 
 
-def test_stage_signatures() -> None:
-    banner("2. Stage module signature test")
+def test_stage_contracts() -> None:
+    banner("2. Stage module contract smoke test")
 
-    modules = {
-        "classification": classification,
-        "coaching": coaching,
-        "synthesis": synthesis,
-        "pathways": pathways,
-        "closure": closure,
-    }
+    state_cases = [
+        (classification.get_state_type, ClassificationState.EVALUATING.value, StateType.EVALUATIVE.value),
+        (classification.get_state_type, ClassificationState.AMBIGUOUS.value, StateType.WAITING.value),
+        (coaching.get_state_type, CoachingState.GUIDING.value, StateType.EVALUATIVE.value),
+        (synthesis.get_state_type, SynthesisState.PREPARING.value, StateType.PRODUCTION.value),
+        (synthesis.get_state_type, SynthesisState.VALIDATING.value, StateType.WAITING.value),
+        (pathways.get_state_type, PathwaysState.PREPARING.value, StateType.PRODUCTION.value),
+        (pathways.get_state_type, PathwaysState.PRESENTING.value, StateType.WAITING.value),
+        (closure.get_state_type, ClosureState.PREPARING.value, StateType.PRODUCTION.value),
+    ]
 
-    for name, module in modules.items():
-        sig = signature(module.handle_stage)
-        params = list(sig.parameters.keys())
-        check(params == ["session"], f"{name}.handle_stage signature is {sig}")
+    for fn, state_name, expected in state_cases:
+        check(
+            fn(state_name) == expected,
+            f"{fn.__module__.split('.')[-1]}.get_state_type({state_name}) == {expected}",
+        )
+
+    check(
+        list(signature(classification.apply_evaluation).parameters.keys()) == ["session", "result"],
+        "classification.apply_evaluation signature is stable",
+    )
+    check(
+        list(signature(coaching.apply_evaluation).parameters.keys()) == ["session", "result"],
+        "coaching.apply_evaluation signature is stable",
+    )
+    check(
+        list(signature(synthesis.apply_production).parameters.keys()) == ["session", "result"],
+        "synthesis.apply_production signature is stable",
+    )
+    check(
+        list(signature(pathways.handle_waiting).parameters.keys()) == ["session"],
+        "pathways.handle_waiting signature is stable",
+    )
+
+    sample_pathways_session = Session(
+        session_id="pathways-format",
+        stage=Stage.PATHWAYS.value,
+        state=PathwaysState.PREPARING.value,
+        chat_history=[
+            ChatMessage(role=ChatRole.ASSISTANT, message="Validated synthesis text."),
+        ],
+    )
+    fallback_pathways_text = pathways._default_pathways_message(sample_pathways_session)
+    check(
+        "## " in fallback_pathways_text
+        and "Orientation:" in fallback_pathways_text
+        and "Conditions:" in fallback_pathways_text,
+        "Pathways fallback text uses a card-friendly structured format",
+    )
+    check(
+        "## <SHORT TITLE>" in pathways.COACHING_OUTPUT_INSTRUCTION,
+        "Pathways coaching output instruction asks for titled sections",
+    )
 
 
-def test_classification_engine_contract_normalization() -> None:
-    banner("3. Classification engine contract normalization")
+def test_state_store_persistence() -> None:
+    banner("3. State store persistence")
 
-    original_evaluate = classification.evaluate
-
-    def incomplete_engine_output(**_kwargs: object) -> dict[str, str]:
-        return {
-            "coach_message": "Raw parser fallback.",
-            "debug_message": "structured_parse_status=failed_no_json_object",
-        }
-
-    classification.evaluate = incomplete_engine_output
-    try:
+    with TemporaryDirectory() as temp_dir:
+        db_path = Path(temp_dir) / "sessions.sqlite3"
+        store_one = StateStore(db_path=db_path)
         session = Session(
-            session_id="classification-contract-normalization",
+            session_id="persisted-session",
             stage=Stage.CLASSIFICATION.value,
             state=ClassificationState.EVALUATING.value,
-            user_message="This simulates incomplete structured engine output.",
+            user_message="Persist me",
+            coach_message="Visible reply",
+            stage_context={"source": "smoke"},
+        )
+        store_one.save_session(session)
+
+        store_two = StateStore(db_path=db_path)
+        restored = store_two.get_session("persisted-session")
+
+        check(restored is not None, "StateStore restores a saved session from SQLite")
+        check(restored.session_id == session.session_id, "Restored session_id matches")
+        check(restored.coach_message == "Visible reply", "Restored coach_message matches")
+        check(
+            restored.stage_context.get("source") == "smoke",
+            "Restored stage_context matches",
         )
 
-        reply = classification.handle_stage(session)
-        updated = reply.session
 
+def test_engine_raw_llm_reply_debug() -> None:
+    banner("4. Engine raw LLM reply debug")
+
+    original_call_llm = engine._call_llm
+
+    evaluation_raw_reply = (
+        '{\n'
+        '  "coaching_outcome": "CONTINUE",\n'
+        '  "evaluation_message": "Keep exploring.",\n'
+        '  "debug_message": "raw evaluation debug"\n'
+        '}'
+    )
+    coaching_raw_reply = (
+        '{\n'
+        '  "coach_message": "What is the core tension?",\n'
+        '  "debug_message": "raw coaching debug"\n'
+        '}'
+    )
+
+    try:
+        engine._call_llm = lambda _prompt: (evaluation_raw_reply, "llm_call_status=ok")
+        evaluation_output = engine.evaluate(
+            stage_yaml_path="backend/config/coaching.yaml",
+            state_name=CoachingState.GUIDING.value,
+            user_message="I need to understand the conflict better.",
+            structured=True,
+        )
+        check(isinstance(evaluation_output, dict), "Evaluation output is structured")
+        evaluation_debug = str(evaluation_output.get("debug_message", ""))
         check(
-            updated.state == ClassificationState.CANCELLED.value,
-            "Incomplete engine output is rejected instead of crashing",
+            "evaluation_llm_reply_raw_begin" in evaluation_debug
+            and "evaluation_llm_reply_raw_end" in evaluation_debug,
+            "Evaluation debug includes raw LLM reply boundaries",
         )
         check(
-            updated.cancelled is True,
-            "Incomplete engine output cancels the classification session",
+            evaluation_raw_reply in evaluation_debug,
+            "Evaluation debug includes the full raw LLM reply",
         )
         check(
-            updated.evaluation_message is not None
-            and "without an evaluation_message" in updated.evaluation_message,
-            "Incomplete engine output receives an explicit evaluation fallback",
+            "evaluation_prompt_full_begin" in evaluation_debug
+            and "evaluation_prompt_full_end" in evaluation_debug,
+            "Evaluation debug includes full prompt boundaries",
         )
         check(
-            updated.debug_message is not None
-            and "classification_engine_missing_fields=classification_label,evaluation_message"
-            in updated.debug_message,
-            "Incomplete engine output surfaces missing fields in debug output",
+            "Latest user message:\nI need to understand the conflict better." in evaluation_debug,
+            "Evaluation debug includes the full runtime prompt text",
+        )
+
+        engine._call_llm = lambda _prompt: (coaching_raw_reply, "llm_call_status=ok")
+        coaching_output = engine.coach(
+            stage_yaml_path="backend/config/coaching.yaml",
+            state_name=CoachingState.GUIDING.value,
+            user_message="I need to understand the conflict better.",
+            structured=True,
+        )
+        check(isinstance(coaching_output, dict), "Coaching output is structured")
+        coaching_debug = str(coaching_output.get("debug_message", ""))
+        check(
+            "coaching_llm_reply_raw_begin" in coaching_debug
+            and "coaching_llm_reply_raw_end" in coaching_debug,
+            "Coaching debug includes raw LLM reply boundaries",
+        )
+        check(
+            coaching_raw_reply in coaching_debug,
+            "Coaching debug includes the full raw LLM reply",
+        )
+        check(
+            "coaching_prompt_full_begin" in coaching_debug
+            and "coaching_prompt_full_end" in coaching_debug,
+            "Coaching debug includes full prompt boundaries",
         )
     finally:
-        classification.evaluate = original_evaluate
+        engine._call_llm = original_call_llm
+
+
+def test_engine_simplified_yaml_prompt_order() -> None:
+    banner("5. Engine simplified YAML prompt order")
+
+    config = {
+        "meta": {
+            "stage": "unit-test",
+            "description": "Description should not be assembled.",
+        },
+        "common": {
+            "preamble": "01 common preamble",
+            "role": "02 common role",
+            "rules": "03 common rules",
+            "output_spec": "04 common output spec",
+        },
+        "stage": {
+            "purpose": "05 stage purpose",
+            "rules": "06 stage rules",
+            "evaluation": "07 stage evaluation",
+            "coaching": "07 stage coaching",
+        },
+        "states": {
+            "active": {
+                "purpose": "08 state purpose",
+                "evaluation": "09 state evaluation",
+                "coaching": "09 state coaching",
+            },
+        },
+    }
+
+    evaluation_prompt = engine._assemble_prompt(config, "active", "evaluation")
+    check(
+        evaluation_prompt
+        == "\n\n".join(
+            [
+                "01 common preamble",
+                "02 common role",
+                "03 common rules",
+                "04 common output spec",
+                "05 stage purpose",
+                "06 stage rules",
+                "07 stage evaluation",
+                "08 state purpose",
+                "09 state evaluation",
+            ]
+        ),
+        "Evaluation prompt uses the simplified YAML order",
+    )
+    check(
+        "Description should not be assembled." not in evaluation_prompt,
+        "Evaluation prompt ignores meta.description",
+    )
+
+    coaching_prompt = engine._assemble_prompt(config, "active", "coaching")
+    check(
+        coaching_prompt
+        == "\n\n".join(
+            [
+                "01 common preamble",
+                "02 common role",
+                "03 common rules",
+                "04 common output spec",
+                "05 stage purpose",
+                "06 stage rules",
+                "07 stage coaching",
+                "08 state purpose",
+                "09 state coaching",
+            ]
+        ),
+        "Coaching prompt uses the simplified YAML order",
+    )
 
 
 def test_controller_transition_initial_states() -> None:
-    banner("4. Controller transition initial-state mapping")
+    banner("6. Controller transition initial-state mapping")
 
     cases = [
         (Stage.CLASSIFICATION, ClassificationState.EVALUATING.value),
@@ -141,6 +343,7 @@ def test_controller_transition_initial_states() -> None:
             state="placeholder",
             debug_message="pre-transition debug",
             stage_context={"old": "value"},
+            stage_turn_count=3,
         )
 
         transitioned = _apply_macro_stage_transition(
@@ -160,37 +363,104 @@ def test_controller_transition_initial_states() -> None:
             "Macro-stage transition resets stage_context",
         )
         check(
+            transitioned.stage_turn_count == 0,
+            "Macro-stage transition resets stage_turn_count",
+        )
+        check(
             transitioned.debug_message is not None
             and "Macro transition applied" in transitioned.debug_message,
             "Macro-stage transition appends explicit debug output",
         )
 
 
-def test_controller_classification_flows() -> dict[str, str]:
-    banner("5. Controller classification flow smoke test")
+def test_evaluation_and_user_text_separation() -> None:
+    banner("7. Evaluation vs coaching separation")
+
+    original_evaluate = engine.evaluate
+    original_coach = engine.coach
+
+    def fake_evaluate(**kwargs: object) -> dict[str, str]:
+        stage_name = str(kwargs["stage_yaml_path"])
+        if stage_name.endswith("classification.yaml"):
+            return {
+                "classification_label": "AMBIGUOUS",
+                "evaluation_message": "Classification result: ambiguous.",
+                "coach_message": "THIS SHOULD NOT LEAK",
+                "debug_message": "fake_classification_eval=ambiguous",
+            }
+        return {
+            "coaching_outcome": "CONTINUE",
+            "evaluation_message": "Coaching result: continue.",
+            "coach_message": "THIS SHOULD NOT LEAK",
+            "debug_message": "fake_coaching_eval=continue",
+        }
+
+    def fake_coach(**kwargs: object) -> dict[str, str]:
+        stage_name = str(kwargs["stage_yaml_path"])
+        if stage_name.endswith("classification.yaml"):
+            return {
+                "coach_message": "Please clarify the work challenge in one sentence.",
+                "debug_message": "fake_classification_coach=ok",
+            }
+        return {
+            "coach_message": "What feels most important to clarify next?",
+            "debug_message": "fake_coaching_coach=ok",
+        }
+
+    engine.evaluate = fake_evaluate
+    engine.coach = fake_coach
+
+    try:
+        state_store.clear()
+        classification_session = init_session(session_id="eval-separation-classification")
+        classification_result = handle_user_msg(
+            classification_session.session_id,
+            "I need help.",
+        )
+        check(
+            classification_result.coach_message
+            == "Please clarify the work challenge in one sentence.",
+            "Classification uses the coaching step for visible text",
+        )
+        check(
+            "THIS SHOULD NOT LEAK" not in str(classification_result.coach_message),
+            "Classification ignores stray user-facing text from evaluation output",
+        )
+
+        make_session(
+            session_id="eval-separation-coaching",
+            stage=Stage.COACHING,
+            state=CoachingState.GUIDING.value,
+        )
+        coaching_result = handle_user_msg(
+            "eval-separation-coaching",
+            "The conflict is mostly about priorities and escalation.",
+        )
+        check(
+            coaching_result.coach_message == "What feels most important to clarify next?",
+            "Coaching uses the coaching step for visible text",
+        )
+        check(
+            "THIS SHOULD NOT LEAK" not in str(coaching_result.coach_message),
+            "Coaching ignores stray user-facing text from evaluation output",
+        )
+    finally:
+        engine.evaluate = original_evaluate
+        engine.coach = original_coach
+
+
+def test_controller_classification_and_coaching_flow() -> dict[str, str]:
+    banner("8. Controller classification and coaching flow")
 
     state_store.clear()
-
     session = init_session()
 
     check(bool(session.session_id), "Session initializes with a session_id")
     check(session.stage == "classification", "Initial macro-stage is classification")
     check(session.state == "evaluating", "Initial local state is evaluating")
+    check(session.turn_count == 0, "Initial turn_count is zero")
+    check(session.stage_turn_count == 0, "Initial stage_turn_count is zero")
     check(session.debug_message == "Session initialized.", "Init debug message is set")
-    check(
-        state_store.get_session(session.session_id) is not None,
-        "Initialized session is persisted in state_store",
-    )
-
-    debug_session = get_debug(session.session_id)
-    check(
-        debug_session.session_id == session.session_id,
-        "Debug retrieval returns the same session",
-    )
-    check(
-        debug_session.debug_message == "Session initialized.",
-        "Debug retrieval exposes the current debug message",
-    )
 
     valid_message = (
         "I'm overwhelmed at work and I can't decide whether to quit "
@@ -199,53 +469,64 @@ def test_controller_classification_flows() -> dict[str, str]:
     valid_updated = handle_user_msg(session.session_id, valid_message)
 
     check(
-        valid_updated.session_id == session.session_id,
-        "Valid flow keeps the same session_id",
-    )
-    check(
-        valid_updated.user_message == valid_message,
-        "Valid flow stores the user message",
-    )
-    check(
         valid_updated.stage == Stage.COACHING.value,
-        "Valid classification advances to coaching",
+        "Valid classification advances into Coaching in the same turn",
     )
     check(
         valid_updated.state == CoachingState.GUIDING.value,
-        "Valid classification sets coaching local state to guiding",
+        "Valid classification lands in the Coaching guiding state",
     )
     check(valid_updated.cancelled is False, "Valid classification does not cancel")
+    check(valid_updated.turn_count == 1, "First user turn increments turn_count")
     check(
-        valid_updated.evaluation_message is not None
-        and "valid" in valid_updated.evaluation_message.lower(),
-        "Valid classification sets a useful evaluation_message",
+        valid_updated.stage_turn_count == 0,
+        "Stage transition resets stage_turn_count for the new stage",
     )
     check(
-        valid_updated.coach_message is not None and len(valid_updated.coach_message) > 0,
-        "Valid classification sets a coach_message",
+        valid_updated.evaluation_message is not None
+        and "continue" in valid_updated.evaluation_message.lower(),
+        "The latest evaluation_message comes from the active Coaching evaluation",
+    )
+    check(
+        valid_updated.coach_message is not None
+        and "important to understand" in valid_updated.coach_message.lower(),
+        "The same turn ends with a coaching-generated user-facing question",
     )
     check(
         len(valid_updated.chat_history) == 2,
-        "Valid classification stores the user turn and coach reply",
-    )
-    check(
-        valid_updated.chat_history[0].role == ChatRole.USER,
-        "Valid flow first chat entry role is USER",
-    )
-    check(
-        valid_updated.chat_history[1].role == ChatRole.ASSISTANT,
-        "Valid flow second chat entry role is ASSISTANT",
+        "The valid flow stores one user turn and one assistant reply",
     )
     check(
         valid_updated.debug_message is not None
-        and "classification_outcome=valid" in valid_updated.debug_message
-        and "Macro transition applied" in valid_updated.debug_message,
-        "Valid classification keeps detailed debug output including macro transition",
+        and "controller_state_type=evaluative" in valid_updated.debug_message
+        and "classification_transition=evaluating_to_completed" in valid_updated.debug_message
+        and "coaching_transition=guiding_to_guiding" in valid_updated.debug_message,
+        "Valid flow keeps explicit controller and stage debug traces",
+    )
+
+    coaching_follow_up = handle_user_msg(
+        session.session_id,
+        "The conflict is mostly about unclear priorities and how to raise them.",
+    )
+    check(
+        coaching_follow_up.stage == Stage.COACHING.value,
+        "Coaching follow-up remains in the Coaching macro-stage",
+    )
+    check(
+        coaching_follow_up.state == CoachingState.GUIDING.value,
+        "Coaching follow-up remains in guiding on offline CONTINUE fallback",
+    )
+    check(
+        coaching_follow_up.turn_count == 2,
+        "Second user turn increments turn_count again",
+    )
+    check(
+        coaching_follow_up.stage_turn_count == 1,
+        "The first direct coaching user turn increments stage_turn_count",
     )
 
     ambiguous_session = init_session(session_id="ambiguous-session")
     ambiguous_updated = handle_user_msg(ambiguous_session.session_id, "I need help.")
-
     check(
         ambiguous_updated.stage == Stage.CLASSIFICATION.value,
         "Ambiguous classification remains in classification",
@@ -255,23 +536,13 @@ def test_controller_classification_flows() -> dict[str, str]:
         "Ambiguous classification sets local state to ambiguous",
     )
     check(
-        ambiguous_updated.cancelled is False,
-        "Ambiguous classification does not cancel immediately",
-    )
-    check(
-        ambiguous_updated.evaluation_message is not None
-        and "ambiguous" in ambiguous_updated.evaluation_message.lower(),
-        "Ambiguous classification sets a useful evaluation_message",
-    )
-    check(
         ambiguous_updated.coach_message is not None
         and "clearer sentence" in ambiguous_updated.coach_message.lower(),
-        "Ambiguous classification asks for clarification",
+        "Ambiguous classification uses coaching to ask for clarification",
     )
     check(
-        ambiguous_updated.debug_message is not None
-        and "classification_outcome=ambiguous" in ambiguous_updated.debug_message,
-        "Ambiguous classification debug trace surfaces the ambiguous outcome",
+        "classification_transition=evaluating_to_ambiguous" in str(ambiguous_updated.debug_message),
+        "Ambiguous classification debug shows the local transition",
     )
 
     invalid_session = init_session(session_id="invalid-session")
@@ -279,7 +550,6 @@ def test_controller_classification_flows() -> dict[str, str]:
         invalid_session.session_id,
         "Tell me a joke about meetings.",
     )
-
     check(
         invalid_updated.stage == Stage.CLASSIFICATION.value,
         "Invalid classification stays in classification",
@@ -288,19 +558,24 @@ def test_controller_classification_flows() -> dict[str, str]:
         invalid_updated.state == ClassificationState.CANCELLED.value,
         "Invalid classification cancels the session",
     )
+    check(invalid_updated.cancelled is True, "Invalid classification sets cancelled")
     check(
-        invalid_updated.cancelled is True,
-        "Invalid classification sets session.cancelled",
+        invalid_updated.coach_message is not None
+        and "can't continue" in invalid_updated.coach_message.lower(),
+        "Invalid classification uses coaching/boundary text for the visible reply",
+    )
+
+    invalid_resubmitted = handle_user_msg(
+        invalid_session.session_id,
+        "Trying to continue after cancellation.",
     )
     check(
-        invalid_updated.evaluation_message is not None
-        and "invalid" in invalid_updated.evaluation_message.lower(),
-        "Invalid classification sets a useful evaluation_message",
+        invalid_resubmitted.state == ClassificationState.CANCELLED.value,
+        "Cancelled classification remains cancelled on resubmission",
     )
     check(
-        invalid_updated.debug_message is not None
-        and "classification_outcome=invalid" in invalid_updated.debug_message,
-        "Invalid classification debug trace surfaces the invalid outcome",
+        "already_cancelled" in str(invalid_resubmitted.debug_message),
+        "Cancelled classification resubmission is handled as a terminal state",
     )
 
     bounded_session = init_session(session_id="bounded-ambiguity-session")
@@ -310,46 +585,22 @@ def test_controller_classification_flows() -> dict[str, str]:
         bounded_session.session_id,
         "Still not sure, just help.",
     )
-
     check(
         first_ambiguous_state == ClassificationState.AMBIGUOUS.value,
-        "Bounded ambiguity scenario first turn becomes ambiguous",
-    )
-    check(
-        second_ambiguous.stage == Stage.CLASSIFICATION.value,
-        "Bounded ambiguity cancellation stays in classification",
+        "Bounded ambiguity first turn becomes ambiguous",
     )
     check(
         second_ambiguous.state == ClassificationState.CANCELLED.value,
         "Bounded ambiguity cancels on unresolved clarification",
     )
+    check(second_ambiguous.cancelled is True, "Bounded ambiguity sets cancelled")
     check(
-        second_ambiguous.cancelled is True,
-        "Bounded ambiguity sets session.cancelled",
-    )
-    check(
-        second_ambiguous.evaluation_message is not None
-        and "cancelled after clarification"
-        in second_ambiguous.evaluation_message.lower(),
-        "Bounded ambiguity makes the cancellation reason explicit",
-    )
-    check(
-        second_ambiguous.debug_message is not None
-        and "bounded_ambiguity_triggered=true" in second_ambiguous.debug_message,
+        "bounded_ambiguity_triggered=true" in str(second_ambiguous.debug_message),
         "Bounded ambiguity is explicit in debug output",
     )
     check(
         len(second_ambiguous.chat_history) == 4,
-        "Bounded ambiguity stores both turns plus both assistant replies",
-    )
-
-    print(f"valid session_id: {valid_updated.session_id}")
-    print(f"valid stage/state: {valid_updated.stage} / {valid_updated.state}")
-    print(f"ambiguous stage/state: {ambiguous_updated.stage} / {ambiguous_updated.state}")
-    print(f"invalid stage/state: {invalid_updated.stage} / {invalid_updated.state}")
-    print(
-        "bounded ambiguity stage/state: "
-        f"{second_ambiguous.stage} / {second_ambiguous.state}"
+        "Bounded ambiguity still stores both user turns and both assistant replies",
     )
 
     return {
@@ -360,8 +611,166 @@ def test_controller_classification_flows() -> dict[str, str]:
     }
 
 
+def test_v31_synthesis_pathways_closure_flow() -> None:
+    banner("9. Synthesis, Pathways, and Closure V3.1 flow")
+
+    original_evaluate = engine.evaluate
+    original_coach = engine.coach
+    evaluate_calls: list[dict[str, object]] = []
+    coach_calls: list[dict[str, object]] = []
+
+    def fake_evaluate(**kwargs: object) -> dict[str, str]:
+        evaluate_calls.append(kwargs)
+        stage_name = str(kwargs["stage_yaml_path"])
+        if stage_name.endswith("coaching.yaml"):
+            return {
+                "coaching_outcome": "COMPLETE",
+                "evaluation_message": "Coaching result: complete.",
+                "debug_message": "fake_coaching_eval=complete",
+            }
+        raise AssertionError(f"Unexpected evaluation call for {stage_name}")
+
+    def fake_coach(**kwargs: object) -> dict[str, str]:
+        coach_calls.append(kwargs)
+        stage_name = str(kwargs["stage_yaml_path"])
+        state_name = str(kwargs["state_name"])
+
+        if stage_name.endswith("synthesis.yaml") and state_name == SynthesisState.PREPARING.value:
+            return {
+                "coach_message": "SYNTHESIS TEXT",
+                "debug_message": "fake_synthesis_prepare=ok",
+            }
+        if stage_name.endswith("synthesis.yaml") and state_name == SynthesisState.REFINING.value:
+            return {
+                "coach_message": "REVISED SYNTHESIS TEXT",
+                "debug_message": "fake_synthesis_refine=ok",
+            }
+        if stage_name.endswith("pathways.yaml") and state_name == PathwaysState.PREPARING.value:
+            return {
+                "coach_message": "PATHWAYS TEXT",
+                "debug_message": "fake_pathways_prepare=ok",
+            }
+        if stage_name.endswith("closure.yaml") and state_name == ClosureState.PREPARING.value:
+            return {
+                "coach_message": "CLOSING TEXT",
+                "debug_message": "fake_closure_prepare=ok",
+            }
+        return {
+            "coach_message": "UNEXPECTED COACH OUTPUT",
+            "debug_message": "fake_coach_unexpected",
+        }
+
+    engine.evaluate = fake_evaluate
+    engine.coach = fake_coach
+
+    try:
+        state_store.clear()
+        coaching_session = make_session(
+            session_id="coaching-to-synthesis",
+            stage=Stage.COACHING,
+            state=CoachingState.GUIDING.value,
+            chat_history=[
+                ChatMessage(role=ChatRole.USER, message="I need help handling a conflict with my manager."),
+                ChatMessage(role=ChatRole.ASSISTANT, message="What makes the conflict hard to address?"),
+            ],
+        )
+
+        synthesis_entry = handle_user_msg(
+            coaching_session.session_id,
+            "I can now explain the conflict clearly and what is blocking me.",
+        )
+        check(
+            synthesis_entry.stage == Stage.SYNTHESIS.value,
+            "Coaching COMPLETE transitions into Synthesis",
+        )
+        check(
+            synthesis_entry.state == SynthesisState.VALIDATING.value,
+            "Synthesis preparing auto-runs and lands in validating",
+        )
+        check(
+            synthesis_entry.coach_message == "SYNTHESIS TEXT",
+            "Synthesis preparing produces the visible synthesis text",
+        )
+        check(
+            len(evaluate_calls) == 1 and str(evaluate_calls[0]["stage_yaml_path"]).endswith("coaching.yaml"),
+            "Only Coaching uses evaluation in this flow",
+        )
+
+        pathways_entry = handle_user_msg(
+            coaching_session.session_id,
+            "yes",
+        )
+        check(
+            pathways_entry.stage == Stage.PATHWAYS.value,
+            "Accepting synthesis transitions into Pathways",
+        )
+        check(
+            pathways_entry.state == PathwaysState.PRESENTING.value,
+            "Pathways preparing auto-runs and lands in presenting",
+        )
+        check(
+            pathways_entry.coach_message == "PATHWAYS TEXT",
+            "Pathways preparing produces the visible pathways text",
+        )
+        check(
+            len(evaluate_calls) == 1,
+            "Synthesis and Pathways do not invoke evaluation by default",
+        )
+
+        closure_entry = handle_user_msg(
+            coaching_session.session_id,
+            "selection:pathway_one",
+        )
+        check(
+            closure_entry.stage == Stage.CLOSURE.value,
+            "Pathways acknowledgement transitions into Closure",
+        )
+        check(
+            closure_entry.state == ClosureState.COMPLETED.value,
+            "Closure preparing auto-runs and completes the session",
+        )
+        check(
+            closure_entry.coach_message == "CLOSING TEXT",
+            "Closure produces the visible closing text",
+        )
+        check(closure_entry.completed is True, "Closure marks the session completed")
+        check(
+            len(evaluate_calls) == 1,
+            "Closure also does not invoke evaluation by default",
+        )
+
+        refinement_session = make_session(
+            session_id="synthesis-refinement",
+            stage=Stage.SYNTHESIS,
+            state=SynthesisState.VALIDATING.value,
+            chat_history=[
+                ChatMessage(role=ChatRole.USER, message="I need help deciding how to raise a resourcing issue."),
+                ChatMessage(role=ChatRole.ASSISTANT, message="INITIAL SYNTHESIS TEXT"),
+            ],
+        )
+        refined = handle_user_msg(
+            refinement_session.session_id,
+            "Not quite. Include the budget pressure and timeline risk.",
+        )
+        check(
+            refined.stage == Stage.PATHWAYS.value,
+            "A refinement turn still advances to Pathways after the final synthesis",
+        )
+        check(
+            refined.state == PathwaysState.PREPARING.value,
+            "After refinement the next stage is Pathways preparing",
+        )
+        check(
+            refined.coach_message == "REVISED SYNTHESIS TEXT",
+            "The refinement turn returns the revised synthesis text before pathways run",
+        )
+    finally:
+        engine.evaluate = original_evaluate
+        engine.coach = original_coach
+
+
 def test_api_flow() -> str:
-    banner("6. FastAPI in-process smoke test")
+    banner("10. FastAPI in-process smoke test")
 
     state_store.clear()
     client = TestClient(app)
@@ -390,11 +799,24 @@ def test_api_flow() -> str:
         debug_payload["session"]["session_id"] == session_id,
         "Debug payload session_id matches",
     )
+    check("debug_message" in debug_payload, "Debug payload contains debug_message")
+    check("user_message" in debug_payload, "Debug payload contains user_message")
     check(
-        "debug_message" in debug_payload,
-        "Debug payload contains debug_message",
+        "evaluation_message" in debug_payload,
+        "Debug payload contains evaluation_message",
     )
-    print("debug payload:", debug_payload)
+    check("coach_message" in debug_payload, "Debug payload contains coach_message")
+    check("turn_count" in debug_payload, "Debug payload contains turn_count")
+    check(
+        "stage_turn_count" in debug_payload,
+        "Debug payload contains stage_turn_count",
+    )
+    check("stage_context" in debug_payload, "Debug payload contains stage_context")
+    check(debug_payload["turn_count"] == 0, "Init debug payload turn_count is zero")
+    check(
+        debug_payload["stage_turn_count"] == 0,
+        "Init debug payload stage_turn_count is zero",
+    )
 
     response = client.post(
         "/user_message",
@@ -416,27 +838,43 @@ def test_api_flow() -> str:
     )
     check(
         user_payload["session"]["stage"] == Stage.COACHING.value,
-        "User reply stage advances to coaching on valid classification",
+        "User reply advances into coaching on valid intake",
     )
     check(
         user_payload["session"]["state"] == CoachingState.GUIDING.value,
-        "User reply state is the coaching initial local state",
+        "User reply lands in coaching guiding",
     )
-    check(
-        "coach_message" in user_payload,
-        "User reply contains coach_message field",
-    )
+    check("coach_message" in user_payload, "User reply contains coach_message field")
     check(
         user_payload["coach_message"] is not None and len(user_payload["coach_message"]) > 0,
         "User reply exposes the latest coach_message",
     )
-    print("user payload:", user_payload)
+
+    response = client.get(f"/debug_trace/{session_id}")
+    check(response.status_code == 200, "Post-turn /debug_trace returns 200")
+    debug_payload = response.json()
+    check(
+        debug_payload["user_message"] is not None,
+        "Post-turn debug payload exposes latest user_message",
+    )
+    check(
+        debug_payload["evaluation_message"] is not None,
+        "Post-turn debug payload exposes latest evaluation_message",
+    )
+    check(
+        debug_payload["coach_message"] is not None,
+        "Post-turn debug payload exposes latest coach_message",
+    )
+    check(
+        debug_payload["turn_count"] == 1,
+        "Post-turn debug payload increments turn_count",
+    )
 
     return session_id
 
 
 def test_negative_api_cases() -> None:
-    banner("7. Negative API tests")
+    banner("11. Negative API tests")
 
     client = TestClient(app)
 
@@ -454,20 +892,24 @@ def test_negative_api_cases() -> None:
 
 
 def main() -> None:
-    banner("Coach V3 functional-slice smoke test")
+    banner("Coach V3.1 execution-model smoke test")
 
     test_imports()
-    test_stage_signatures()
-    test_classification_engine_contract_normalization()
+    test_stage_contracts()
+    test_state_store_persistence()
+    test_engine_raw_llm_reply_debug()
+    test_engine_simplified_yaml_prompt_order()
     test_controller_transition_initial_states()
-    controller_session_ids = test_controller_classification_flows()
+    test_evaluation_and_user_text_separation()
+    controller_session_ids = test_controller_classification_and_coaching_flow()
+    test_v31_synthesis_pathways_closure_flow()
     api_session_id = test_api_flow()
     test_negative_api_cases()
 
     banner("All smoke tests passed")
     print(f"Controller smoke session_ids: {controller_session_ids}")
     print(f"API smoke session_id: {api_session_id}")
-    print("Classification is now the first real V3 slice under regression coverage.")
+    print("Coach V3 now runs on the V3.1 controller/stage execution model.")
 
 
 if __name__ == "__main__":

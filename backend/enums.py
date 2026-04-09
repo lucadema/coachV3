@@ -18,6 +18,15 @@ class Stage(str, Enum):
     CLOSURE = "closure"
 
 
+class StateType(str, Enum):
+    """Execution behaviour types for local stage states."""
+
+    EVALUATIVE = "evaluative"
+    PRODUCTION = "production"
+    WAITING = "waiting"
+    TERMINAL = "terminal"
+
+
 class ClassificationState(str, Enum):
     """Local states for the Classification stage."""
 
