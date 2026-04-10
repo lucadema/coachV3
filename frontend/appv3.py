@@ -118,20 +118,18 @@ h1, h2, h3 {
 }
 
 .pending-card {
-    border: 1px solid #d9dee7;
-    border-radius: 14px;
-    background: #f5f7fa;
+    background: transparent;
     color: #5a6473;
-    padding: 0.95rem 1rem;
-    margin: 0.75rem 0 1rem 0;
+    padding: 0;
+    margin: 0.55rem 0 0.9rem 0;
 }
 
 .pending-header {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    font-weight: 600;
-    margin-bottom: 0.55rem;
+    font-weight: 500;
+    margin-bottom: 0;
 }
 
 .pending-dot {
@@ -751,8 +749,7 @@ def _send_message_with_feedback(
         (
             '<div class="pending-card">'
             '<div class="pending-header"><span class="pending-dot"></span>'
-            'Reply pending</div>'
-            'Your message has been sent. Aether is preparing the next reply.'
+            'Aether is preparing the next reply...</div>'
             "</div>"
         ),
         unsafe_allow_html=True,
