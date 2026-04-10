@@ -745,14 +745,14 @@ def _send_message_with_feedback(
     *,
     pending_text: str,
 ) -> dict[str, Any] | None:
-    """Show an in-page pending state while waiting for one backend reply."""
+    """Show a compact in-page pending state while waiting for one backend reply."""
     pending_placeholder = st.empty()
     pending_placeholder.markdown(
         (
             '<div class="pending-card">'
             '<div class="pending-header"><span class="pending-dot"></span>'
             'Reply pending</div>'
-            f"{html.escape(pending_text).replace(chr(10), '<br>')}"
+            'Your message has been sent. Aether is preparing the next reply.'
             "</div>"
         ),
         unsafe_allow_html=True,
