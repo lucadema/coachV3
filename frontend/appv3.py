@@ -29,7 +29,7 @@ def _resolve_api_url() -> str:
 
 
 def _debug_enabled() -> bool:
-    """Show the debug panel only when DEBUG is explicitly TRUE."""
+    """Show the debug panel when DEBUG is enabled or a query override requests it."""
     try:
         debug_value = st.secrets.get("DEBUG")
     except Exception:
@@ -38,7 +38,27 @@ def _debug_enabled() -> bool:
     if debug_value is None:
         debug_value = os.getenv("DEBUG", "")
 
-    return str(debug_value).strip().upper() == "TRUE"
+    env_enabled = str(debug_value).strip().upper() == "TRUE"
+
+    query_debug_value = None
+    try:
+        query_debug_value = st.query_params.get("debug")
+        if query_debug_value is None:
+            query_debug_value = st.query_params.get("DEBUG")
+    except Exception:
+        query_debug_value = None
+
+    if isinstance(query_debug_value, list):
+        query_debug_value = query_debug_value[0] if query_debug_value else None
+
+    query_enabled = str(query_debug_value or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+    return env_enabled or query_enabled
 
 
 API_URL = _resolve_api_url()
@@ -172,6 +192,7 @@ DEFAULTS = {
     "session_id": None,
     "session_view": None,
     "coach_message": "",
+    "cached_pathways_message": "",
     "debug_history": [],
     "latest_debug": None,
     "latest_debug_fingerprint": None,
@@ -225,6 +246,7 @@ def _reset_missing_session() -> None:
     st.session_state.session_id = None
     st.session_state.session_view = None
     st.session_state.coach_message = ""
+    st.session_state.cached_pathways_message = ""
     st.session_state.debug_history = []
     st.session_state.latest_debug = None
     st.session_state.latest_debug_fingerprint = None
@@ -725,14 +747,22 @@ def map_backend_to_screen(session: dict[str, Any]) -> str:
     }.get(session.get("stage"), "coaching")
 
 
+def _cache_pathways_message(session: dict[str, Any], coach_message: str) -> None:
+    """Keep the latest pathways text locally so it can be reviewed later."""
+    if session.get("stage") == "pathways" and coach_message:
+        st.session_state.cached_pathways_message = coach_message
+
+
 def _apply_backend_turn(data: dict[str, Any] | None, debug_label: str) -> bool:
     """Update the frontend session state from one backend reply."""
     if data is None:
         return False
 
     session = data.get("session", {})
+    coach_message = data.get("coach_message") or ""
+    _cache_pathways_message(session, coach_message)
     st.session_state.session_view = session
-    st.session_state.coach_message = data.get("coach_message") or ""
+    st.session_state.coach_message = coach_message
     st.session_state.ui_screen = map_backend_to_screen(session)
     _capture_debug_snapshot(debug_label, force_append=True)
     return True
@@ -743,22 +773,10 @@ def _send_message_with_feedback(
     *,
     pending_text: str,
 ) -> dict[str, Any] | None:
-    """Show a compact in-page pending state while waiting for one backend reply."""
-    pending_placeholder = st.empty()
-    pending_placeholder.markdown(
-        (
-            '<div class="pending-card">'
-            '<div class="pending-header"><span class="pending-dot"></span>'
-            'Aether is preparing the next reply...</div>'
-            "</div>"
-        ),
-        unsafe_allow_html=True,
-    )
-
+    """Show a single visible pending state while waiting for one backend reply."""
     with st.spinner("Aether is preparing the next reply..."):
         data = api_send_message(message)
 
-    pending_placeholder.empty()
     return data
 
 
@@ -863,6 +881,7 @@ Aether will ask you questions that help you understand your problem more fully b
         st.session_state.debug_history = []
         st.session_state.latest_debug = None
         st.session_state.latest_debug_fingerprint = None
+        st.session_state.cached_pathways_message = ""
         st.session_state.awaiting_pathways_after_refinement = False
         st.session_state.problem_input_version = 0
         st.session_state.coaching_input_version = 0
@@ -999,6 +1018,10 @@ We’ve made considerable progress, and based on the reflective conversation, th
 
 
 def render_pathways() -> None:
+    _cache_pathways_message(
+        st.session_state.session_view or {},
+        st.session_state.coach_message,
+    )
     pathway_cards = _parse_pathway_cards(st.session_state.coach_message)
 
     st.write(
@@ -1090,6 +1113,46 @@ Expand a pathway card for more detail, then choose one or continue.
                 st.rerun()
 
 
+def render_pathways_review() -> None:
+    cached_pathways = st.session_state.cached_pathways_message
+    pathway_cards = _parse_pathway_cards(cached_pathways)
+
+    st.write("### Review pathways")
+    st.write(
+        """
+You can review the pathways here at any time before closing the session.
+This is a read-only view of the pathways that were previously presented.
+"""
+    )
+
+    if pathway_cards:
+        card_columns = st.columns(2)
+        for index, card in enumerate(pathway_cards):
+            with card_columns[index % 2]:
+                with st.expander(f"⊕ {card['title']}", expanded=False):
+                    st.markdown(
+                        (
+                            '<div class="text-panel">'
+                            f"{html.escape(card['body']).replace(chr(10), '<br>')}"
+                            "</div>"
+                        ),
+                        unsafe_allow_html=True,
+                    )
+    elif cached_pathways:
+        _render_text_panel(
+            "Pathways",
+            cached_pathways,
+            preview_chars=320,
+            expanded=True,
+        )
+    else:
+        st.info("No cached pathways are available for review.")
+
+    if st.button("Return to closing page"):
+        st.session_state.ui_screen = "feedback"
+        st.rerun()
+
+
 def render_feedback() -> None:
     if st.session_state.coach_message:
         st.write("### Closing message")
@@ -1129,9 +1192,18 @@ def render_feedback() -> None:
         key="feedback_value",
     )
 
-    if st.button("Close"):
-        st.session_state.ui_screen = "closed"
-        st.rerun()
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.session_state.cached_pathways_message:
+            if st.button("Review pathways", use_container_width=True):
+                st.session_state.ui_screen = "pathways_review"
+                st.rerun()
+
+    with col2:
+        if st.button("Close", use_container_width=True):
+            st.session_state.ui_screen = "closed"
+            st.rerun()
 
 
 def render_closed() -> None:
@@ -1159,6 +1231,7 @@ if st.session_state.frontend_error:
     "coaching": render_coaching,
     "synthesis_review": render_synthesis_review,
     "pathways": render_pathways,
+    "pathways_review": render_pathways_review,
     "feedback": render_feedback,
     "closed": render_closed,
 }[st.session_state.ui_screen]()
