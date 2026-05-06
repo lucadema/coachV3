@@ -101,3 +101,17 @@ A task is done only when:
 - smoke or regression checks are updated if needed
 - debug and tracing remain useful
 - no unnecessary unrelated refactors were introduced
+
+## Frontend migration
+
+A new React + TypeScript + Vite frontend exists in `glimpse/`.
+
+- Treat `glimpse/` as the new frontend under active development.
+- The existing `frontend/` folder is the old Streamlit UI and should not be modified unless explicitly requested.
+- Do not modify `backend/` unless the task specifically asks for backend changes.
+- For frontend work, run commands from `glimpse/`.
+- Use:
+  - `npm run dev` for local development
+  - `npm run build` to verify production build
+- Keep API calls isolated in a dedicated client module, for example `glimpse/src/api/`.
+- The React frontend should call the FastAPI backend; it must not call OpenAI directly.
