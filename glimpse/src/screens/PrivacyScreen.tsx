@@ -1,6 +1,7 @@
 import radioInactive from '../assets/onboarding/radio-inactive.svg'
 import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
+import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
 
 const privacyMessage = `Aether is a confidential thinking space.
@@ -33,7 +34,7 @@ export function PrivacyScreen({
 }: PrivacyScreenProps) {
   return (
     <OnboardingFrame>
-      <div className="absolute inset-[16.6%_26.46%_16.7%_26.46%] rounded-[40px] border-[6px] border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]" />
+      <OnboardingCard className="inset-[16.6%_26.46%_16.7%_26.46%]" />
       <p className="absolute inset-[26.66%_36.8%_44.04%_36.8%] m-0 whitespace-pre-line text-center text-[20px] font-light leading-[1.18] tracking-[-0.8px] text-[#294744]">
         {privacyMessage}
       </p>
@@ -81,7 +82,12 @@ export function PrivacyScreen({
         </span>
       </label>
       <div className="absolute inset-[75.1%_44.11%_20.8%_44.18%]">
-        <OnboardingButton disabled={!hasAcknowledged} label="Next" onClick={onContinue} />
+        <OnboardingButton
+          disabled={!hasAcknowledged}
+          label="Next"
+          onClick={onContinue}
+          tone={hasAcknowledged ? 'filled' : 'outline'}
+        />
       </div>
       <AetherWatermark className="absolute left-1/2 top-[4.3%] -translate-x-1/2" />
     </OnboardingFrame>

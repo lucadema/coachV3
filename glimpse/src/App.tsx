@@ -1,25 +1,31 @@
 import { useEffect, useState } from 'react'
+import { InformationScreen } from './screens/InformationScreen'
 import { LaunchScreen } from './screens/LaunchScreen'
 import { OnboardingCompleteScreen } from './screens/OnboardingCompleteScreen'
 import { PrivacyScreen } from './screens/PrivacyScreen'
 import { WelcomeScreen } from './screens/WelcomeScreen'
 import type { OnboardingStep } from './types/onboarding'
 
-const SPLASH_DELAY_MS = 3000
+const SCREEN_DELAYS: Partial<Record<OnboardingStep, number>> = {
+  launch: 3000,
+  welcome: 4000,
+}
 
 function App() {
   const [step, setStep] = useState<OnboardingStep>('launch')
   const [hasAcknowledgedPrivacy, setHasAcknowledgedPrivacy] = useState(false)
 
   useEffect(() => {
-    if (step !== 'launch' && step !== 'welcome') {
+    const delay = SCREEN_DELAYS[step]
+
+    if (delay === undefined) {
       return undefined
     }
 
     const nextStep: OnboardingStep = step === 'launch' ? 'welcome' : 'privacy'
     const timeoutId = window.setTimeout(() => {
       setStep(nextStep)
-    }, SPLASH_DELAY_MS)
+    }, delay)
 
     return () => {
       window.clearTimeout(timeoutId)
@@ -44,10 +50,14 @@ function App() {
             return
           }
 
-          setStep('complete')
+          setStep('information')
         }}
       />
     )
+  }
+
+  if (step === 'information') {
+    return <InformationScreen onStartSession={() => setStep('complete')} />
   }
 
   return <OnboardingCompleteScreen />

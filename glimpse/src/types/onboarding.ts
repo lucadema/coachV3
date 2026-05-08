@@ -1,1 +1,1 @@
-export type OnboardingStep = 'launch' | 'welcome' | 'privacy' | 'complete'
+export type OnboardingStep = 'launch' | 'welcome' | 'privacy' | 'information' | 'complete'
