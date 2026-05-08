@@ -102,16 +102,18 @@ A task is done only when:
 - debug and tracing remain useful
 - no unnecessary unrelated refactors were introduced
 
-## Frontend migration
+## Incremental Streamlit to React migration
 
-A new React + TypeScript + Vite frontend exists in `glimpse/`.
+We are migrating the existing Streamlit frontend to a new React + TypeScript frontend in `glimpse/`, but the migration must be done step by step.
 
-- Treat `glimpse/` as the new frontend under active development.
-- The existing `frontend/` folder is the old Streamlit UI and should not be modified unless explicitly requested.
-- Do not modify `backend/` unless the task specifically asks for backend changes.
-- For frontend work, run commands from `glimpse/`.
-- Use:
-  - `npm run dev` for local development
-  - `npm run build` to verify production build
-- Keep API calls isolated in a dedicated client module, for example `glimpse/src/api/`.
-- The React frontend should call the FastAPI backend; it must not call OpenAI directly.
+For now, preserve the existing Streamlit UI behaviour exactly.
+
+Rules:
+- Do not change user-visible Streamlit text, layout, labels, styling, or screen order unless explicitly requested.
+- Do not change backend endpoints unless explicitly requested.
+- Do not change coaching engine behaviour, prompts, scoring, or stage-transition logic unless explicitly requested.
+- When extracting frontend control logic, prefer pure helper modules with no Streamlit dependency.
+- Keep Streamlit behaviour as the reference implementation until the React frontend has equivalent behaviour.
+- Any extracted flow logic should be easy to port later into `glimpse/src/flow/`.
+- Add small tests for pure flow logic where possible.
+- After each incremental step, the Streamlit app should still run and behave exactly as before.
