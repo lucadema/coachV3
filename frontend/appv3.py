@@ -7,9 +7,14 @@ from typing import Any
 import streamlit as st
 from api_client import request_json
 from dotenv import load_dotenv
+from session_state import (
+    build_backend_turn_state_update,
+    build_cached_pathways_message,
+    build_missing_session_reset_state,
+    default_frontend_state,
+)
 from session_flow import (
     is_refined_synthesis_waiting_for_pathways,
-    map_backend_to_screen,
     parse_pathway_cards,
 )
 
@@ -191,25 +196,7 @@ h1, h2, h3 {
 # ------------------------------------------------
 # Session state
 # ------------------------------------------------
-DEFAULTS = {
-    "ui_screen": "welcome",
-    "session_id": None,
-    "session_view": None,
-    "coach_message": "",
-    "cached_pathways_message": "",
-    "debug_history": [],
-    "latest_debug": None,
-    "latest_debug_fingerprint": None,
-    "frontend_error": None,
-    "frontend_notice": None,
-    "awaiting_pathways_after_refinement": False,
-    "problem_input_version": 0,
-    "coaching_input_version": 0,
-    "synthesis_feedback_version": 0,
-    "pathways_selection_version": 0,
-}
-
-for key, value in DEFAULTS.items():
+for key, value in default_frontend_state().items():
     if key not in st.session_state:
         st.session_state[key] = value
 
@@ -247,24 +234,8 @@ def _request_json(
 
 def _reset_missing_session() -> None:
     """Reset local UI state when the backend no longer knows the session id."""
-    st.session_state.session_id = None
-    st.session_state.session_view = None
-    st.session_state.coach_message = ""
-    st.session_state.cached_pathways_message = ""
-    st.session_state.debug_history = []
-    st.session_state.latest_debug = None
-    st.session_state.latest_debug_fingerprint = None
-    st.session_state.awaiting_pathways_after_refinement = False
-    st.session_state.ui_screen = "intro"
-    st.session_state.problem_input_version += 1
-    st.session_state.coaching_input_version += 1
-    st.session_state.synthesis_feedback_version += 1
-    st.session_state.pathways_selection_version += 1
-    st.session_state.frontend_error = None
-    st.session_state.frontend_notice = (
-        "Your previous session is no longer available, likely because the backend "
-        "restarted or was redeployed. Please start a new session."
-    )
+    for key, value in build_missing_session_reset_state(st.session_state).items():
+        st.session_state[key] = value
 
 
 def api_init_session() -> dict[str, Any] | None:
@@ -742,8 +713,11 @@ def render_debug_panel() -> None:
 # ------------------------------------------------
 def _cache_pathways_message(session: dict[str, Any], coach_message: str) -> None:
     """Keep the latest pathways text locally so it can be reviewed later."""
-    if session.get("stage") == "pathways" and coach_message:
-        st.session_state.cached_pathways_message = coach_message
+    st.session_state.cached_pathways_message = build_cached_pathways_message(
+        session,
+        coach_message,
+        current_cached_pathways_message=st.session_state.cached_pathways_message,
+    )
 
 
 def _apply_backend_turn(data: dict[str, Any] | None, debug_label: str) -> bool:
@@ -751,12 +725,11 @@ def _apply_backend_turn(data: dict[str, Any] | None, debug_label: str) -> bool:
     if data is None:
         return False
 
-    session = data.get("session", {})
-    coach_message = data.get("coach_message") or ""
-    _cache_pathways_message(session, coach_message)
-    st.session_state.session_view = session
-    st.session_state.coach_message = coach_message
-    st.session_state.ui_screen = map_backend_to_screen(session)
+    for key, value in build_backend_turn_state_update(
+        data,
+        current_cached_pathways_message=st.session_state.cached_pathways_message,
+    ).items():
+        st.session_state[key] = value
     _capture_debug_snapshot(debug_label, force_append=True)
     return True
 
