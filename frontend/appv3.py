@@ -4,8 +4,8 @@ import html
 from pathlib import Path
 from typing import Any
 
-import requests
 import streamlit as st
+from api_client import request_json
 from dotenv import load_dotenv
 from session_flow import (
     is_refined_synthesis_waiting_for_pathways,
@@ -224,25 +224,25 @@ def _request_json(
     timeout_seconds: int = REQUEST_TIMEOUT_SECONDS,
 ) -> dict[str, Any] | None:
     """Call the backend and return parsed JSON or surface a readable error."""
-    try:
-        if method == "GET":
-            response = requests.get(f"{API_URL}{path}", timeout=timeout_seconds)
-        else:
-            response = requests.post(
-                f"{API_URL}{path}",
-                json=payload,
-                timeout=timeout_seconds,
-            )
-        if response.status_code == 404 and path.startswith(("/user_message", "/debug_trace/")):
-            _reset_missing_session()
-            st.rerun()
-        response.raise_for_status()
-        st.session_state.frontend_error = None
-        st.session_state.frontend_notice = None
-        return response.json()
-    except requests.RequestException as exc:
-        st.session_state.frontend_error = str(exc)
+    result = request_json(
+        API_URL,
+        method,
+        path,
+        payload=payload,
+        timeout_seconds=timeout_seconds,
+    )
+
+    if result.not_found and path.startswith(("/user_message", "/debug_trace/")):
+        _reset_missing_session()
+        st.rerun()
+
+    if result.error_message is not None:
+        st.session_state.frontend_error = result.error_message
         return None
+
+    st.session_state.frontend_error = None
+    st.session_state.frontend_notice = None
+    return result.data
 
 
 def _reset_missing_session() -> None:
