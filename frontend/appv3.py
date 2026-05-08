@@ -1,13 +1,17 @@
 import json
 import os
 import html
-import re
 from pathlib import Path
 from typing import Any
 
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+from session_flow import (
+    is_refined_synthesis_waiting_for_pathways,
+    map_backend_to_screen,
+    parse_pathway_cards,
+)
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
@@ -736,17 +740,6 @@ def render_debug_panel() -> None:
 # ------------------------------------------------
 # Mapping and response handling
 # ------------------------------------------------
-def map_backend_to_screen(session: dict[str, Any]) -> str:
-    """Translate the backend macro-stage into the current UI screen."""
-    return {
-        "classification": "coaching",
-        "coaching": "coaching",
-        "synthesis": "synthesis_review",
-        "pathways": "pathways",
-        "closure": "feedback",
-    }.get(session.get("stage"), "coaching")
-
-
 def _cache_pathways_message(session: dict[str, Any], coach_message: str) -> None:
     """Keep the latest pathways text locally so it can be reviewed later."""
     if session.get("stage") == "pathways" and coach_message:
@@ -778,41 +771,6 @@ def _send_message_with_feedback(
         data = api_send_message(message)
 
     return data
-
-
-def _is_refined_synthesis_waiting_for_pathways(session: dict[str, Any]) -> bool:
-    """Detect the specific backend state after a synthesis refinement reply."""
-    return (
-        session.get("stage") == "pathways"
-        and session.get("state") == "preparing"
-    )
-
-
-def _parse_pathway_cards(text: str | None) -> list[dict[str, str]]:
-    """Extract pathway cards from the structured pathways coach_message text."""
-    source = str(text or "").strip()
-    if not source:
-        return []
-
-    heading_matches = list(re.finditer(r"(?m)^##\s+(.+?)\s*$", source))
-    if not heading_matches:
-        return []
-
-    cards = []
-    for index, match in enumerate(heading_matches):
-        title = match.group(1).strip()
-        body_start = match.end()
-        body_end = (
-            heading_matches[index + 1].start()
-            if index + 1 < len(heading_matches)
-            else len(source)
-        )
-        body = source[body_start:body_end].strip()
-        if not title or not body:
-            continue
-        cards.append({"title": title, "body": body})
-
-    return cards
 
 
 # ------------------------------------------------
@@ -1009,7 +967,7 @@ We’ve made considerable progress, and based on the reflective conversation, th
             if _apply_backend_turn(data, "Synthesis refinement requested"):
                 session = data.get("session", {})
                 st.session_state.awaiting_pathways_after_refinement = (
-                    _is_refined_synthesis_waiting_for_pathways(session)
+                    is_refined_synthesis_waiting_for_pathways(session)
                 )
                 if st.session_state.awaiting_pathways_after_refinement:
                     st.session_state.ui_screen = "synthesis_review"
@@ -1022,7 +980,7 @@ def render_pathways() -> None:
         st.session_state.session_view or {},
         st.session_state.coach_message,
     )
-    pathway_cards = _parse_pathway_cards(st.session_state.coach_message)
+    pathway_cards = parse_pathway_cards(st.session_state.coach_message)
 
     st.write(
         """
@@ -1115,7 +1073,7 @@ Expand a pathway card for more detail, then choose one or continue.
 
 def render_pathways_review() -> None:
     cached_pathways = st.session_state.cached_pathways_message
-    pathway_cards = _parse_pathway_cards(cached_pathways)
+    pathway_cards = parse_pathway_cards(cached_pathways)
 
     st.write("### Review pathways")
     st.write(
