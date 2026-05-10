@@ -3,6 +3,7 @@ import { InformationScreen } from './screens/InformationScreen'
 import { LaunchScreen } from './screens/LaunchScreen'
 import { OnboardingCompleteScreen } from './screens/OnboardingCompleteScreen'
 import { PrivacyScreen } from './screens/PrivacyScreen'
+import { ProblemInputScreen } from './screens/ProblemInputScreen'
 import { WelcomeScreen } from './screens/WelcomeScreen'
 import type { OnboardingStep } from './types/onboarding'
 
@@ -57,7 +58,11 @@ function App() {
   }
 
   if (step === 'information') {
-    return <InformationScreen onStartSession={() => setStep('complete')} />
+    return <InformationScreen onStartSession={() => setStep('problem_input')} />
+  }
+
+  if (step === 'problem_input') {
+    return <ProblemInputScreen onContinue={() => setStep('complete')} />
   }
 
   return <OnboardingCompleteScreen />

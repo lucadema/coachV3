@@ -5,6 +5,7 @@ const DESIGN_WIDTH = 1451
 const DESIGN_HEIGHT = 1024
 
 type OnboardingFrameProps = {
+  background?: 'launch' | 'plain'
   children: ReactNode
 }
 
@@ -16,7 +17,7 @@ function getCanvasScale() {
   return Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT, 1)
 }
 
-export function OnboardingFrame({ children }: OnboardingFrameProps) {
+export function OnboardingFrame({ background = 'launch', children }: OnboardingFrameProps) {
   const [scale, setScale] = useState(getCanvasScale)
 
   useEffect(() => {
@@ -34,12 +35,14 @@ export function OnboardingFrame({ children }: OnboardingFrameProps) {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f3ef]">
-      <img
-        src={launchBackground}
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-center"
-      />
+      {background === 'launch' ? (
+        <img
+          src={launchBackground}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-center"
+        />
+      ) : null}
       <div
         className="relative h-[1024px] w-[1451px] origin-center"
         style={{
