@@ -11,6 +11,8 @@ Design rule for this POC:
   returned together
 """
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,14 +20,27 @@ from backend.controller import get_debug, handle_user_msg, init_session
 from backend.models import DebugReply, SessionView, UserMsg, UserMsgReply
 
 
+LOCAL_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
+def _resolve_cors_origins() -> list[str]:
+    configured_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+
+    return list(dict.fromkeys([*LOCAL_CORS_ORIGINS, *configured_origins]))
+
+
 app = FastAPI(title="Coach V3 API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_resolve_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
