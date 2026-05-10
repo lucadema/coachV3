@@ -12,12 +12,24 @@ Design rule for this POC:
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.controller import get_debug, handle_user_msg, init_session
 from backend.models import DebugReply, SessionView, UserMsg, UserMsgReply
 
 
 app = FastAPI(title="Coach V3 API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 # ============================================================================
