@@ -18,10 +18,16 @@ the thinking cloud icon represents you.
 The green ‘a’ icon represents Aether.`
 
 type InformationScreenProps = {
+  error?: string | null
+  isLoading?: boolean
   onStartSession: () => void
 }
 
-export function InformationScreen({ onStartSession }: InformationScreenProps) {
+export function InformationScreen({
+  error = null,
+  isLoading = false,
+  onStartSession,
+}: InformationScreenProps) {
   return (
     <OnboardingFrame>
       <OnboardingCard className="inset-[16.7%_26.46%_16.6%_26.46%]" />
@@ -43,8 +49,21 @@ export function InformationScreen({ onStartSession }: InformationScreenProps) {
       <p className="absolute inset-[54.1%_36.8%_37.79%_36.8%] m-0 whitespace-pre-line text-center text-[20px] font-light leading-[1.18] tracking-[-0.8px] text-[#294744]">
         {informationIconMessage}
       </p>
+      {error ? (
+        <p
+          role="alert"
+          className="absolute inset-[69.75%_36.8%_26.86%_36.8%] m-0 text-center text-[14px] font-light leading-[1.25] text-[#294744]"
+        >
+          {error}
+        </p>
+      ) : null}
       <div className="absolute inset-[75.29%_44.11%_20.61%_44.18%]">
-        <OnboardingButton label="Start Session" onClick={onStartSession} tone="outline" />
+        <OnboardingButton
+          disabled={isLoading}
+          label={isLoading ? 'Starting...' : 'Start Session'}
+          onClick={onStartSession}
+          tone="outline"
+        />
       </div>
       <AetherWatermark className="absolute left-1/2 top-[4.3%] -translate-x-1/2" />
     </OnboardingFrame>
