@@ -19,6 +19,21 @@ It is intended to guide the staged migration from the existing Streamlit fronten
 - Preserve the existing Streamlit behaviour first; improve visual fidelity screen by screen.
 - Keep every migration increment small, testable and easy to revert.
 
+## PDF generation rule
+
+The pathways download button should generate a client-side PDF using `jsPDF`.
+
+PDF generation must be isolated from screen components:
+
+- PDF types should live under `glimpse/src/pdf/`
+- PDF layout/composition should live under `glimpse/src/pdf/`
+- `PathwaysScreen` should only expose an `onDownloadPdf` action
+- No backend call is required for PDF generation in the current iteration
+- Required PDF content:
+  - original problem statement
+  - synthesis text
+  - pathways
+
 ## Backend endpoints currently used by the Streamlit reference frontend
 
 - `GET /session_initialise` creates/initialises a backend session.
@@ -182,7 +197,7 @@ Special case: when backend returns `session.stage == "pathways"` and `session.st
 - **Next screen logic:** Do not jump directly to pathways after refinement submission unless the flow helper resolves it. In the special pathways/preparing case, stay on synthesis_review until user continues.
 - **Notes and risks:** This is the most delicate transition. It must preserve the Streamlit behaviour where refined synthesis is reviewed before pathways are shown.
 
-#### 07a_Pathways_options
+### 07a_Pathways_options
 
 - Figma screen: `07a_Pathways_options`
 - App/UI state: `pathways`
@@ -192,16 +207,19 @@ Special case: when backend returns `session.stage == "pathways"` and `session.st
   - User presses `Continue` to move to the next stage.
   - Send `continue` via `POST /user_message`.
   - The `+` button expands a pathway locally only.
-  - The download button is visible in the design but not implemented in this iteration.
+  - The download button generates a client-side PDF using `jsPDF`.
+  - No backend call is required for PDF generation in the current iteration.
 - Next screen logic:
   - After `continue`, apply backend response using existing session helpers.
   - Resolve next screen using `sessionFlow`.
-  - If the next screen is not yet implemented, show the backend-response placeholder.
+  - PDF download does not change screen state.
 - Notes/risks:
   - Do not implement pathway selection.
   - Do not send `pathway_selected:<title>`.
   - Expanding a pathway is local UI state only and must not call the backend.
-  - Download/export is a future iteration.
+  - PDF generation must be isolated under `glimpse/src/pdf/`.
+  - PDF layout/composition must not live inside `PathwaysScreen`.
+  - The React app must retain problem statement, synthesis, and pathways text in session/app state so the PDF can be generated without backend interaction.
 
 ### 07a_Pathways_expanded
 
