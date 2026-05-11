@@ -3,6 +3,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { downloadSessionPdf } from './pdf/sessionPdfDownload'
+
+vi.mock('./pdf/sessionPdfDownload', () => ({
+  downloadSessionPdf: vi.fn(),
+}))
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -16,6 +21,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
 
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
@@ -220,6 +226,16 @@ describe('App backend connection flow', () => {
 
     expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
     expect(screen.queryByText('Backend response placeholder')).toBeNull()
+
+    const callsBeforeDownload = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: /download session pdf/i }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeDownload)
+    expect(downloadSessionPdf).toHaveBeenCalledWith({
+      pathways: [{ title: 'Pathway one', body: 'Details' }],
+      problemStatement: 'I need to reset expectations with my team',
+      synthesis: 'Here is the synthesis.',
+    })
   })
 
   it('continues from pathways to local feedback, then closes locally', async () => {

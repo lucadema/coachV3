@@ -10,6 +10,7 @@ type PathwaysScreenProps = {
   error?: string | null
   isLoading?: boolean
   onContinue: () => void | Promise<void>
+  onDownloadPdf: () => void
   pathways: PathwayCard[]
   rawPathwaysText?: string
 }
@@ -57,13 +58,13 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-function DownloadPlaceholder() {
+function DownloadButton({ onDownloadPdf }: { onDownloadPdf: () => void }) {
   return (
     <button
       type="button"
-      aria-label="Download not available yet"
-      disabled
-      className="absolute left-[43px] top-[592px] size-[22px] rounded-[8px] border-[1.5px] border-[#dbec03] bg-transparent disabled:cursor-not-allowed"
+      aria-label="Download session PDF"
+      onClick={onDownloadPdf}
+      className="absolute left-[43px] top-[592px] size-[22px] cursor-pointer rounded-[8px] border-[1.5px] border-[#dbec03] bg-transparent"
     >
       <span className="absolute left-1/2 top-[5px] h-[8px] w-[1.5px] -translate-x-1/2 bg-[#75b83b]" />
       <span className="absolute left-[7px] top-[11px] h-[1.5px] w-[8px] bg-[#75b83b]" />
@@ -113,6 +114,7 @@ export function PathwaysScreen({
   error = null,
   isLoading = false,
   onContinue,
+  onDownloadPdf,
   pathways,
   rawPathwaysText = '',
 }: PathwaysScreenProps) {
@@ -184,7 +186,7 @@ export function PathwaysScreen({
               <RawFallback text={rawPathwaysText} />
             )}
 
-            <DownloadPlaceholder />
+            <DownloadButton onDownloadPdf={onDownloadPdf} />
             <p className="absolute left-[75px] top-[592px] m-0 w-[222px] text-left text-[11px] font-light leading-none tracking-[-0.44px] text-[#294744]">
               {downloadNotice}
             </p>

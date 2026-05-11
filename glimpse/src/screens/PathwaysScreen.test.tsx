@@ -25,6 +25,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PathwaysScreen>[0]> =
   return render(
     <PathwaysScreen
       onContinue={vi.fn()}
+      onDownloadPdf={vi.fn()}
       pathways={pathways}
       rawPathwaysText="## Build the evidence first"
       {...overrides}
@@ -75,6 +76,27 @@ describe('PathwaysScreen', () => {
     await user.click(screen.getByRole('button', { name: /close expanded pathway/i }))
 
     expect(onContinue).not.toHaveBeenCalled()
+  })
+
+  it('calls onDownloadPdf when the download button is clicked', async () => {
+    const user = userEvent.setup()
+    const onDownloadPdf = vi.fn()
+    renderScreen({ onDownloadPdf })
+
+    await user.click(screen.getByRole('button', { name: /download session pdf/i }))
+
+    expect(onDownloadPdf).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not trigger PDF generation when expanding or closing a pathway', async () => {
+    const user = userEvent.setup()
+    const onDownloadPdf = vi.fn()
+    renderScreen({ onDownloadPdf })
+
+    await user.click(screen.getByRole('button', { name: /expand build the evidence first/i }))
+    await user.click(screen.getByRole('button', { name: /close expanded pathway/i }))
+
+    expect(onDownloadPdf).not.toHaveBeenCalled()
   })
 
   it('calls onContinue when Continue is clicked', async () => {

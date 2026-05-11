@@ -5,6 +5,9 @@ import {
   buildBackendTurnStateUpdate,
   buildMissingSessionResetState,
 } from './flow/sessionState'
+import { downloadSessionPdf } from './pdf/sessionPdfDownload'
+import { buildSessionPdfData } from './pdf/sessionPdfLayout'
+import type { SessionPdfSourceData } from './pdf/sessionPdfTypes'
 import { BackendResponsePlaceholder } from './screens/BackendResponsePlaceholder'
 import { ClosedScreen } from './screens/ClosedScreen'
 import { DiscussionScreen } from './screens/DiscussionScreen'
@@ -61,6 +64,7 @@ function App() {
   const [synthesisMode, setSynthesisMode] = useState<SynthesisReviewMode>('review')
   const [cachedPathwaysMessage, setCachedPathwaysMessage] = useState('')
   const [feedback, setFeedback] = useState<FeedbackState>(() => createDefaultFeedbackState())
+  const [sessionContent, setSessionContent] = useState<SessionPdfSourceData>({})
   const [frontendError, setFrontendError] = useState<string | null>(null)
   const [isInitialisingSession, setIsInitialisingSession] = useState(false)
   const [isSubmittingProblem, setIsSubmittingProblem] = useState(false)
@@ -121,12 +125,25 @@ function App() {
     }
 
     if (update.uiScreen === 'synthesis_review') {
+      if (update.coachMessage) {
+        setSessionContent((currentContent) => ({
+          ...currentContent,
+          synthesis: update.coachMessage,
+        }))
+      }
       setSynthesisMode('review')
       setStep('synthesis_review')
       return
     }
 
     if (update.uiScreen === 'pathways') {
+      const pathwaysText = update.coachMessage || update.cachedPathwaysMessage
+
+      setSessionContent((currentContent) => ({
+        ...currentContent,
+        pathways: parsePathwayCards(pathwaysText),
+        rawPathwaysText: pathwaysText,
+      }))
       setStep('pathways')
       return
     }
@@ -181,6 +198,7 @@ function App() {
     setCoachMessage(resetState.coachMessage)
     setCachedPathwaysMessage(resetState.cachedPathwaysMessage)
     setResolvedScreen(resetState.uiScreen)
+    setSessionContent({})
     setFrontendError(resetState.frontendNotice)
     setStep('information')
   }
@@ -199,6 +217,10 @@ function App() {
       const activeSessionId = await ensureSessionId()
       const response = await sendUserMessage(activeSessionId, trimmedProblemText)
 
+      setSessionContent((currentContent) => ({
+        ...currentContent,
+        problemStatement: trimmedProblemText,
+      }))
       applyBackendTurnResponse(response, activeSessionId, 'problem_input')
     } catch (error) {
       if (error instanceof CoachApiError && error.isMissingSession) {
@@ -303,6 +325,10 @@ function App() {
         setResolvedScreen('synthesis_review')
         setLastBackendPreviousScreen('synthesis_review')
         setLastBackendStayedInCoaching(false)
+        setSessionContent((currentContent) => ({
+          ...currentContent,
+          synthesis: update.coachMessage,
+        }))
         setSynthesisMode('awaiting_pathways_after_refinement')
         setStep('synthesis_review')
         return
@@ -384,6 +410,21 @@ function App() {
     setStep('closed')
   }
 
+  function handleDownloadPdf(pdfSource: SessionPdfSourceData = sessionContent) {
+    setFrontendError(null)
+
+    try {
+      downloadSessionPdf(buildSessionPdfData(pdfSource))
+    } catch (error) {
+      setFrontendError(
+        getErrorMessage(
+          error,
+          'Unable to create the PDF download. Please try again.',
+        ),
+      )
+    }
+  }
+
   if (step === 'launch') {
     return <LaunchScreen />
   }
@@ -456,13 +497,21 @@ function App() {
 
   if (step === 'pathways') {
     const pathwaysText = coachMessage || cachedPathwaysMessage
+    const pathways = parsePathwayCards(pathwaysText)
 
     return (
       <PathwaysScreen
         error={frontendError}
         isLoading={isSubmittingProblem}
         onContinue={handlePathwaysContinue}
-        pathways={parsePathwayCards(pathwaysText)}
+        onDownloadPdf={() => {
+          handleDownloadPdf({
+            ...sessionContent,
+            pathways,
+            rawPathwaysText: pathwaysText,
+          })
+        }}
+        pathways={pathways}
         rawPathwaysText={pathwaysText}
       />
     )
