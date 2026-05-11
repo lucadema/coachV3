@@ -27,7 +27,7 @@ export function ProblemInputScreen({
   const canContinue = trimmedProblemText.length > 0 && !isLoading
 
   return (
-    <OnboardingFrame background="plain">
+    <OnboardingFrame>
       <AetherWatermark className="absolute left-1/2 top-[4.3%] -translate-x-1/2" />
 
       <section
