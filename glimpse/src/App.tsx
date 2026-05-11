@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CoachApiError, initialiseSession, sendUserMessage } from './api/coachClient'
+import { isRefinedSynthesisWaitingForPathways } from './flow/sessionFlow'
 import {
   buildBackendTurnStateUpdate,
   buildMissingSessionResetState,
@@ -11,11 +12,15 @@ import { LaunchScreen } from './screens/LaunchScreen'
 import { OnboardingCompleteScreen } from './screens/OnboardingCompleteScreen'
 import { PrivacyScreen } from './screens/PrivacyScreen'
 import { ProblemInputScreen } from './screens/ProblemInputScreen'
+import {
+  SynthesisReviewScreen,
+  type SynthesisReviewMode,
+} from './screens/SynthesisReviewScreen'
 import { WelcomeScreen } from './screens/WelcomeScreen'
 import type { OnboardingStep } from './types/onboarding'
 import type { BackendSessionView, FrontendScreen } from './types/session'
 
-type AppStep = OnboardingStep | 'coaching' | 'backend_response'
+type AppStep = OnboardingStep | 'coaching' | 'synthesis_review' | 'backend_response'
 
 const SCREEN_DELAYS: Partial<Record<AppStep, number>> = {
   launch: 3000,
@@ -42,6 +47,7 @@ function App() {
   const [lastBackendStayedInCoaching, setLastBackendStayedInCoaching] = useState<boolean | null>(
     null,
   )
+  const [synthesisMode, setSynthesisMode] = useState<SynthesisReviewMode>('review')
   const [cachedPathwaysMessage, setCachedPathwaysMessage] = useState('')
   const [frontendError, setFrontendError] = useState<string | null>(null)
   const [isInitialisingSession, setIsInitialisingSession] = useState(false)
@@ -82,12 +88,11 @@ function App() {
     return session.session_id
   }
 
-  function applyBackendTurnResponse(
-    response: Parameters<typeof buildBackendTurnStateUpdate>[0],
+  function applyBackendTurnUpdate(
+    update: ReturnType<typeof buildBackendTurnStateUpdate>,
     activeSessionId: string,
     previousScreen: FrontendScreen,
   ) {
-    const update = buildBackendTurnStateUpdate(response, cachedPathwaysMessage)
     const stayedInCoaching = previousScreen === 'coaching' && update.uiScreen === 'coaching'
 
     setSessionId(update.sessionView?.session_id ?? activeSessionId)
@@ -97,7 +102,28 @@ function App() {
     setResolvedScreen(update.uiScreen)
     setLastBackendPreviousScreen(previousScreen)
     setLastBackendStayedInCoaching(stayedInCoaching)
-    setStep(update.uiScreen === 'coaching' ? 'coaching' : 'backend_response')
+
+    if (update.uiScreen === 'coaching') {
+      setStep('coaching')
+      return
+    }
+
+    if (update.uiScreen === 'synthesis_review') {
+      setSynthesisMode('review')
+      setStep('synthesis_review')
+      return
+    }
+
+    setStep('backend_response')
+  }
+
+  function applyBackendTurnResponse(
+    response: Parameters<typeof buildBackendTurnStateUpdate>[0],
+    activeSessionId: string,
+    previousScreen: FrontendScreen,
+  ) {
+    const update = buildBackendTurnStateUpdate(response, cachedPathwaysMessage)
+    applyBackendTurnUpdate(update, activeSessionId, previousScreen)
   }
 
   async function handleStartSession() {
@@ -201,6 +227,110 @@ function App() {
     }
   }
 
+  async function handleSynthesisAccept() {
+    setFrontendError(null)
+    setIsSubmittingProblem(true)
+
+    try {
+      const activeSessionId = await ensureSessionId()
+      const response = await sendUserMessage(activeSessionId, 'yes')
+
+      applyBackendTurnResponse(response, activeSessionId, 'synthesis_review')
+    } catch (error) {
+      if (error instanceof CoachApiError && error.isMissingSession) {
+        resetAfterMissingSession()
+        return
+      }
+
+      setFrontendError(
+        getErrorMessage(
+          error,
+          'Unable to submit your response. Please check that the API is running and try again.',
+        ),
+      )
+    } finally {
+      setIsSubmittingProblem(false)
+    }
+  }
+
+  function handleOpenSynthesisRefinement() {
+    setFrontendError(null)
+    setSynthesisMode('refinement_open')
+  }
+
+  async function handleSubmitSynthesisRefinement(feedback: string) {
+    const trimmedFeedback = feedback.trim()
+
+    if (!trimmedFeedback) {
+      return
+    }
+
+    setFrontendError(null)
+    setIsSubmittingProblem(true)
+
+    try {
+      const activeSessionId = await ensureSessionId()
+      const response = await sendUserMessage(activeSessionId, trimmedFeedback)
+      const update = buildBackendTurnStateUpdate(response, cachedPathwaysMessage)
+
+      if (isRefinedSynthesisWaitingForPathways(update.sessionView)) {
+        setSessionId(update.sessionView?.session_id ?? activeSessionId)
+        setSessionView(update.sessionView)
+        setCoachMessage(update.coachMessage)
+        setCachedPathwaysMessage(update.cachedPathwaysMessage)
+        setResolvedScreen('synthesis_review')
+        setLastBackendPreviousScreen('synthesis_review')
+        setLastBackendStayedInCoaching(false)
+        setSynthesisMode('awaiting_pathways_after_refinement')
+        setStep('synthesis_review')
+        return
+      }
+
+      applyBackendTurnUpdate(update, activeSessionId, 'synthesis_review')
+    } catch (error) {
+      if (error instanceof CoachApiError && error.isMissingSession) {
+        resetAfterMissingSession()
+        return
+      }
+
+      setFrontendError(
+        getErrorMessage(
+          error,
+          'Unable to submit your response. Please check that the API is running and try again.',
+        ),
+      )
+    } finally {
+      setIsSubmittingProblem(false)
+    }
+  }
+
+  async function handleContinueToPathways() {
+    setFrontendError(null)
+    setIsSubmittingProblem(true)
+
+    try {
+      const activeSessionId = await ensureSessionId()
+      const response = await sendUserMessage(activeSessionId, 'continue')
+
+      setSynthesisMode('review')
+      applyBackendTurnResponse(response, activeSessionId, 'synthesis_review')
+    } catch (error) {
+      if (error instanceof CoachApiError && error.isMissingSession) {
+        resetAfterMissingSession()
+        return
+      }
+
+      setFrontendError(
+        getErrorMessage(
+          error,
+          'Unable to submit your response. Please check that the API is running and try again.',
+        ),
+      )
+    } finally {
+      setIsSubmittingProblem(false)
+    }
+  }
+
   if (step === 'launch') {
     return <LaunchScreen />
   }
@@ -252,6 +382,21 @@ function App() {
         error={frontendError}
         isLoading={isSubmittingProblem}
         onContinue={handleCoachingContinue}
+      />
+    )
+  }
+
+  if (step === 'synthesis_review') {
+    return (
+      <SynthesisReviewScreen
+        error={frontendError}
+        isLoading={isSubmittingProblem}
+        mode={synthesisMode}
+        onAccept={handleSynthesisAccept}
+        onContinueToPathways={handleContinueToPathways}
+        onOpenRefinement={handleOpenSynthesisRefinement}
+        onSubmitRefinement={handleSubmitSynthesisRefinement}
+        synthesisText={coachMessage}
       />
     )
   }
