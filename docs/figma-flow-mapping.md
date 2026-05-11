@@ -182,25 +182,42 @@ Special case: when backend returns `session.stage == "pathways"` and `session.st
 - **Next screen logic:** Do not jump directly to pathways after refinement submission unless the flow helper resolves it. In the special pathways/preparing case, stay on synthesis_review until user continues.
 - **Notes and risks:** This is the most delicate transition. It must preserve the Streamlit behaviour where refined synthesis is reviewed before pathways are shown.
 
-### 07a_Pathways_options
+#### 07a_Pathways_options
 
-- **Figma screen:** `07a_Pathways_options`
-- **App/UI state:** `pathways`
-- **UI mode/substate:** `cards_collapsed`
-- **Backend stage/state:** pathways
-- **Backend call / actions:** User can expand a pathway, choose a pathway, type a pathway choice, or continue. Selection sends pathway_selected:<title> or pathway_selected:<typed text> via POST /user_message. Continue sends continue.
-- **Next screen logic:** Use backend response to resolve next screen. Usually moves to feedback when backend reaches closure, otherwise may remain on pathways.
-- **Notes and risks:** Pathways should preferably come from parsed/structured pathway data. For now, preserve compatibility with Markdown heading parsing if backend only returns coach_message.
+- Figma screen: `07a_Pathways_options`
+- App/UI state: `pathways`
+- UI mode/substate: `cards_collapsed`
+- Backend stage/state: `pathways`
+- Backend call/action:
+  - User presses `Continue` to move to the next stage.
+  - Send `continue` via `POST /user_message`.
+  - The `+` button expands a pathway locally only.
+  - The download button is visible in the design but not implemented in this iteration.
+- Next screen logic:
+  - After `continue`, apply backend response using existing session helpers.
+  - Resolve next screen using `sessionFlow`.
+  - If the next screen is not yet implemented, show the backend-response placeholder.
+- Notes/risks:
+  - Do not implement pathway selection.
+  - Do not send `pathway_selected:<title>`.
+  - Expanding a pathway is local UI state only and must not call the backend.
+  - Download/export is a future iteration.
 
-### 07b_Pathways_extended
+### 07a_Pathways_expanded
 
-- **Figma screen:** `07b_Pathways_extended`
-- **App/UI state:** `pathways`
-- **UI mode/substate:** `expanded_pathway`
-- **Backend stage/state:** pathways
-- **Backend call / actions:** No backend call merely to expand/collapse. Backend call only if user chooses the pathway or continues.
-- **Next screen logic:** Closing the expanded card returns to pathways with cards_collapsed. Choosing pathway sends selection and then resolves next screen from backend response.
-- **Notes and risks:** This is a substate of pathways, not pathways_review. Do not model it as a separate process stage.
+- Figma screen: `07a_Pathways_expanded`
+- App/UI state: `pathways`
+- UI mode/substate: `expanded_pathway`
+- Backend stage/state: `pathways`
+- Backend call/action:
+  - No backend call.
+  - User presses `X` to close and return to `07a_Pathways_options`.
+- Next screen logic:
+  - Closing returns locally to `pathways` with `cards_collapsed`.
+- Notes/risks:
+  - This is not a separate backend stage.
+  - This is not a pathway review screen.
+  - This is just an expanded local reading view for one pathway.
 
 ### 08a_Survey
 

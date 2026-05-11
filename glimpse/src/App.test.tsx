@@ -156,7 +156,7 @@ describe('App backend connection flow', () => {
     expect(screen.getByRole('button', { name: /not quite/i })).toBeTruthy()
   })
 
-  it('routes accepted synthesis to the placeholder when pathways is not implemented yet', async () => {
+  it('shows pathways screen when accepted synthesis resolves to pathways', async () => {
     vi.useFakeTimers()
 
     const fetchMock = vi
@@ -218,9 +218,93 @@ describe('App backend connection flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
     await flushPromises()
 
+    expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
+    expect(screen.queryByText('Backend response placeholder')).toBeNull()
+  })
+
+  it('continues from pathways to the placeholder using only the continue action', async () => {
+    vi.useFakeTimers()
+
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          session_id: 'session-1',
+          stage: 'classification',
+          state: 'evaluating',
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'What feels most unresolved?',
+          session: {
+            session_id: 'session-1',
+            stage: 'coaching',
+            state: 'guiding',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'Here is the synthesis.',
+          session: {
+            session_id: 'session-1',
+            stage: 'synthesis',
+            state: 'presenting',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: '## Pathway one\nDetails',
+          session: {
+            session_id: 'session-1',
+            stage: 'pathways',
+            state: 'presenting',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'Closure text',
+          session: {
+            session_id: 'session-1',
+            stage: 'closure',
+            state: 'presenting',
+          },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await advanceToInformationScreen()
+
+    fireEvent.click(screen.getByRole('button', { name: /start session/i }))
+    await flushPromises()
+    fireEvent.change(screen.getByLabelText(/describe your professional challenge/i), {
+      target: { value: 'I need to reset expectations with my team' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+    fireEvent.change(screen.getByLabelText(/reply to aether/i), {
+      target: { value: 'The tradeoff is unclear' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+    fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
+    await flushPromises()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+
+    const postBodies = fetchMock.mock.calls
+      .map(([, options]) => options?.body)
+      .filter((body): body is string => typeof body === 'string')
+
+    expect(postBodies.some((body) => body.includes('"user_message":"continue"'))).toBe(true)
+    expect(postBodies.every((body) => !body.includes('pathway_selected:'))).toBe(true)
     expect(screen.getByText('Backend response placeholder')).toBeTruthy()
-    expect(screen.getAllByText('pathways').length).toBeGreaterThan(0)
-    expect(screen.getByText('presenting')).toBeTruthy()
+    expect(screen.getByText('feedback')).toBeTruthy()
+    expect(screen.getByText('closure')).toBeTruthy()
   })
 
   it('keeps refined synthesis on synthesis review when backend returns pathways preparing', async () => {

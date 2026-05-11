@@ -62,4 +62,8 @@ Move the discussion into a different frame.
       { title: 'Change the conversation', body: 'Move the discussion into a different frame.' },
     ])
   })
+
+  it('returns an empty array when no markdown pathway headings are present', () => {
+    expect(parsePathwayCards('A plain response without pathway headings.')).toEqual([])
+  })
 })
