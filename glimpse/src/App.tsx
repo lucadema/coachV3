@@ -6,7 +6,9 @@ import {
   buildMissingSessionResetState,
 } from './flow/sessionState'
 import { BackendResponsePlaceholder } from './screens/BackendResponsePlaceholder'
+import { ClosedScreen } from './screens/ClosedScreen'
 import { DiscussionScreen } from './screens/DiscussionScreen'
+import { FeedbackScreen } from './screens/FeedbackScreen'
 import { InformationScreen } from './screens/InformationScreen'
 import { LaunchScreen } from './screens/LaunchScreen'
 import { OnboardingCompleteScreen } from './screens/OnboardingCompleteScreen'
@@ -18,10 +20,18 @@ import {
   type SynthesisReviewMode,
 } from './screens/SynthesisReviewScreen'
 import { WelcomeScreen } from './screens/WelcomeScreen'
+import { createDefaultFeedbackState, type FeedbackState } from './types/feedback'
 import type { OnboardingStep } from './types/onboarding'
 import type { BackendSessionView, FrontendScreen } from './types/session'
 
-type AppStep = OnboardingStep | 'coaching' | 'synthesis_review' | 'pathways' | 'backend_response'
+type AppStep =
+  | OnboardingStep
+  | 'coaching'
+  | 'synthesis_review'
+  | 'pathways'
+  | 'feedback'
+  | 'closed'
+  | 'backend_response'
 
 const SCREEN_DELAYS: Partial<Record<AppStep, number>> = {
   launch: 3000,
@@ -50,6 +60,7 @@ function App() {
   )
   const [synthesisMode, setSynthesisMode] = useState<SynthesisReviewMode>('review')
   const [cachedPathwaysMessage, setCachedPathwaysMessage] = useState('')
+  const [feedback, setFeedback] = useState<FeedbackState>(() => createDefaultFeedbackState())
   const [frontendError, setFrontendError] = useState<string | null>(null)
   const [isInitialisingSession, setIsInitialisingSession] = useState(false)
   const [isSubmittingProblem, setIsSubmittingProblem] = useState(false)
@@ -117,6 +128,11 @@ function App() {
 
     if (update.uiScreen === 'pathways') {
       setStep('pathways')
+      return
+    }
+
+    if (update.uiScreen === 'feedback') {
+      setStep('feedback')
       return
     }
 
@@ -363,6 +379,11 @@ function App() {
     }
   }
 
+  function handleFeedbackClose(nextFeedback: FeedbackState) {
+    setFeedback(nextFeedback)
+    setStep('closed')
+  }
+
   if (step === 'launch') {
     return <LaunchScreen />
   }
@@ -445,6 +466,20 @@ function App() {
         rawPathwaysText={pathwaysText}
       />
     )
+  }
+
+  if (step === 'feedback') {
+    return (
+      <FeedbackScreen
+        feedback={feedback}
+        onChange={setFeedback}
+        onClose={handleFeedbackClose}
+      />
+    )
+  }
+
+  if (step === 'closed') {
+    return <ClosedScreen />
   }
 
   if (step === 'backend_response') {

@@ -222,7 +222,7 @@ describe('App backend connection flow', () => {
     expect(screen.queryByText('Backend response placeholder')).toBeNull()
   })
 
-  it('continues from pathways to the placeholder using only the continue action', async () => {
+  it('continues from pathways to local feedback, then closes locally', async () => {
     vi.useFakeTimers()
 
     const fetchMock = vi
@@ -302,9 +302,16 @@ describe('App backend connection flow', () => {
 
     expect(postBodies.some((body) => body.includes('"user_message":"continue"'))).toBe(true)
     expect(postBodies.every((body) => !body.includes('pathway_selected:'))).toBe(true)
-    expect(screen.getByText('Backend response placeholder')).toBeTruthy()
-    expect(screen.getByText('feedback')).toBeTruthy()
-    expect(screen.getByText('closure')).toBeTruthy()
+    expect(
+      screen.getByText('Before you go, please tell us what you thought of the Aether Glimpse experience.'),
+    ).toBeTruthy()
+    expect(screen.queryByText('Closure text')).toBeNull()
+
+    const callsBeforeClose = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeClose)
+    expect(screen.getByText('We hope you’ve enjoyed this glimpse of Aether')).toBeTruthy()
   })
 
   it('keeps refined synthesis on synthesis review when backend returns pathways preparing', async () => {
