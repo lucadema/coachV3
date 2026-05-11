@@ -5,15 +5,19 @@ import type { BackendSessionView, FrontendScreen } from '../types/session'
 type BackendResponsePlaceholderProps = {
   coachMessage: string
   error?: string | null
+  previousScreen?: FrontendScreen | null
   resolvedScreen: FrontendScreen | null
   sessionView: BackendSessionView | null
+  stayedInCoaching?: boolean | null
 }
 
 export function BackendResponsePlaceholder({
   coachMessage,
   error = null,
+  previousScreen = null,
   resolvedScreen,
   sessionView,
+  stayedInCoaching = null,
 }: BackendResponsePlaceholderProps) {
   return (
     <OnboardingFrame background="plain">
@@ -25,10 +29,10 @@ export function BackendResponsePlaceholder({
               Backend response placeholder
             </p>
             <h1 className="m-0 mt-[14px] text-[28px] font-light leading-[1.1]">
-              First problem submitted
+              Backend response received
             </h1>
             <p className="m-0 mt-[10px] text-[15px] font-light leading-[1.35] text-[rgba(41,71,68,0.72)]">
-              The full coaching UI is intentionally not implemented yet.
+              The resolved target screen is intentionally not implemented yet.
             </p>
           </div>
 
@@ -42,6 +46,9 @@ export function BackendResponsePlaceholder({
           ) : null}
 
           <dl className="m-0 grid grid-cols-[180px_1fr] gap-x-[18px] gap-y-[12px] text-[16px] leading-[1.35]">
+            <dt className="font-bold">Previous screen</dt>
+            <dd className="m-0">{previousScreen ?? 'Not recorded'}</dd>
+
             <dt className="font-bold">Resolved next screen</dt>
             <dd className="m-0">{resolvedScreen ?? 'Not resolved yet'}</dd>
 
@@ -50,6 +57,11 @@ export function BackendResponsePlaceholder({
 
             <dt className="font-bold">Backend state</dt>
             <dd className="m-0">{String(sessionView?.state ?? 'Not returned')}</dd>
+
+            <dt className="font-bold">Stayed in coaching</dt>
+            <dd className="m-0">
+              {stayedInCoaching === null ? 'Not recorded' : stayedInCoaching ? 'Yes' : 'No'}
+            </dd>
           </dl>
 
           <div>
