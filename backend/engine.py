@@ -40,11 +40,14 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 import yaml
+
+from backend import telemetry
 
 
 LLM_ENABLED_VALUES = {"1", "true", "yes", "on"}
@@ -233,7 +236,44 @@ def _append_runtime_context(
 # LLM Boundary And Output Extraction
 # ============================================================================
 
-def _call_llm(prompt: str) -> tuple[str | None, str]:
+def _get_usage_attribute(source: Any, name: str) -> Any:
+    if isinstance(source, dict):
+        return source.get(name)
+
+    return getattr(source, name, None)
+
+
+def _get_usage_value(usage: Any, *names: str) -> int | None:
+    for name in names:
+        value = _get_usage_attribute(usage, name)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+
+    return None
+
+
+def _get_nested_usage_value(usage: Any, *paths: str) -> int | None:
+    for path in paths:
+        current = usage
+        for part in path.split("."):
+            current = _get_usage_attribute(current, part)
+            if current is None:
+                break
+
+        if isinstance(current, int) and not isinstance(current, bool):
+            return current
+
+    return None
+
+
+def _latency_ms(start_time: float) -> int:
+    return int((time.perf_counter() - start_time) * 1000)
+
+
+def _call_llm(
+    prompt: str,
+    telemetry_context: dict[str, Any] | None = None,
+) -> tuple[str | None, str]:
     """
     Optionally call the LLM.
 
@@ -243,6 +283,8 @@ def _call_llm(prompt: str) -> tuple[str | None, str]:
     llm_enabled = os.getenv("COACHV3_USE_LLM", "").lower() in LLM_ENABLED_VALUES
     model = os.getenv("COACHV3_OPENAI_MODEL") or os.getenv("OPENAI_MODEL")
 
+    # Skipped/disabled paths do not emit LLM telemetry because no actual LLM
+    # call occurred; session telemetry still records the user turn.
     if not llm_enabled:
         return None, "llm_call_status=disabled"
 
@@ -252,11 +294,52 @@ def _call_llm(prompt: str) -> tuple[str | None, str]:
     if not os.getenv("OPENAI_API_KEY"):
         return None, "llm_call_status=skipped_missing_api_key"
 
+    start_time = time.perf_counter()
+    telemetry_context = telemetry_context or {}
+    session_id = telemetry_context.get("session_id")
+    llm_operation = str(telemetry_context.get("llm_operation") or "unknown")
+
     try:
         from openai import OpenAI
 
         client = OpenAI()
         response = client.responses.create(model=model, input=prompt)
+        usage = getattr(response, "usage", None)
+        input_tokens = _get_usage_value(usage, "input_tokens", "prompt_tokens")
+        output_tokens = _get_usage_value(usage, "output_tokens", "completion_tokens")
+        total_tokens = _get_usage_value(usage, "total_tokens")
+        cached_input_tokens = _get_usage_value(
+            usage,
+            "cached_input_tokens",
+            "cached_tokens",
+        ) or _get_nested_usage_value(
+            usage,
+            "input_tokens_details.cached_tokens",
+            "prompt_tokens_details.cached_tokens",
+            "input_token_details.cached_tokens",
+        )
+        reasoning_tokens = _get_usage_value(
+            usage,
+            "reasoning_tokens",
+        ) or _get_nested_usage_value(
+            usage,
+            "output_tokens_details.reasoning_tokens",
+            "completion_tokens_details.reasoning_tokens",
+            "output_token_details.reasoning_tokens",
+        )
+
+        telemetry.record_llm_call(
+            session_id=session_id if isinstance(session_id, str) else None,
+            llm_operation=llm_operation,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            cached_input_tokens=cached_input_tokens,
+            reasoning_tokens=reasoning_tokens,
+            success=True,
+            latency_ms=_latency_ms(start_time),
+        )
         output_text = getattr(response, "output_text", None)
 
         if output_text:
@@ -264,7 +347,30 @@ def _call_llm(prompt: str) -> tuple[str | None, str]:
 
         return str(response), "llm_call_status=ok_no_output_text"
     except Exception as exc:
+        telemetry.record_llm_call(
+            session_id=session_id if isinstance(session_id, str) else None,
+            llm_operation=llm_operation,
+            model=model,
+            success=False,
+            latency_ms=_latency_ms(start_time),
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
         return None, f"llm_call_status=error llm_error={exc!r}"
+
+
+def _call_llm_with_context(
+    prompt: str,
+    telemetry_context: dict[str, Any],
+) -> tuple[str | None, str]:
+    """Call the LLM while staying compatible with smoke-test monkeypatches."""
+    try:
+        return _call_llm(prompt, telemetry_context=telemetry_context)
+    except TypeError as exc:
+        if "telemetry_context" not in str(exc):
+            raise
+
+        return _call_llm(prompt)
 
 
 def _extract_output(raw_output: str, structured: bool) -> dict[str, Any] | str:
@@ -363,6 +469,7 @@ def _run_interaction(
     structured: bool = True,
     no_output_structured: dict[str, Any] | None = None,
     no_output_plain: str | None = None,
+    telemetry_session_id: str | None = None,
 ) -> dict[str, Any] | str:
     """Run one engine interaction while keeping evaluate/coach wrappers thin."""
     config_path = Path(stage_yaml_path)
@@ -376,7 +483,11 @@ def _run_interaction(
         output_instruction=output_instruction,
     )
 
-    raw_output, llm_debug = _call_llm(prompt)
+    telemetry_context = {
+        "session_id": telemetry_session_id,
+        "llm_operation": f"{config_path.stem}.{state_name}.{interaction_type}",
+    }
+    raw_output, llm_debug = _call_llm_with_context(prompt, telemetry_context)
 
     if raw_output:
         output = _extract_output(raw_output, structured=structured)
@@ -416,6 +527,8 @@ def evaluate(
     context: dict[str, Any] | None = None,
     output_instruction: str | None = None,
     structured: bool = True,
+    *,
+    telemetry_session_id: str | None = None,
 ) -> dict[str, Any] | str:
     """
     Build an evaluation prompt, call the LLM if enabled, and extract output.
@@ -439,6 +552,7 @@ def evaluate(
         context=context,
         output_instruction=output_instruction,
         structured=structured,
+        telemetry_session_id=telemetry_session_id,
         no_output_structured={
             "evaluation_message": "TODO: engine evaluation not implemented yet.",
             "debug_message": "structured_parse_status=no_llm_output",
@@ -454,6 +568,8 @@ def coach(
     context: dict[str, Any] | None = None,
     output_instruction: str | None = None,
     structured: bool = False,
+    *,
+    telemetry_session_id: str | None = None,
 ) -> dict[str, Any] | str:
     """
     Build a coaching prompt, call the LLM if enabled, and extract output.
@@ -471,6 +587,7 @@ def coach(
         context=context,
         output_instruction=output_instruction,
         structured=structured,
+        telemetry_session_id=telemetry_session_id,
         no_output_structured={
             "coach_message": "TODO: engine coach message not implemented yet.",
             "debug_message": "structured_parse_status=no_llm_output",

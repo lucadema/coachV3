@@ -20,6 +20,7 @@ import uuid
 from typing import Any
 
 from backend import engine
+from backend import telemetry
 from backend.enums import (
     ChatRole,
     ClassificationState,
@@ -56,6 +57,17 @@ def _append_debug_message(session: Session, *lines: str) -> None:
     merged_lines = [str(session.debug_message).strip()] if session.debug_message else []
     merged_lines.extend(line for line in lines if line)
     session.debug_message = "\n".join(line for line in merged_lines if line)
+
+
+def _session_status(session: Session) -> str | None:
+    """Return a coarse, safe telemetry status without inspecting content."""
+    if session.completed:
+        return "completed"
+
+    if session.cancelled:
+        return "cancelled"
+
+    return None
 
 
 def _require_session(session_id: str) -> Session:
@@ -121,6 +133,7 @@ def _run_coaching_step(module: Any, stage_reply: StageReply, step_index: int) ->
         context=session.stage_context,
         output_instruction=getattr(module, "COACHING_OUTPUT_INSTRUCTION", None),
         structured=True,
+        telemetry_session_id=session.session_id,
     )
     coaching_output = module.normalize_coaching_output(session, coaching_result)
     session.coach_message = coaching_output["coach_message"]
@@ -191,6 +204,7 @@ def _run_stage_loop(session: Session) -> Session:
                     context=session.stage_context,
                     output_instruction=getattr(module, "EVALUATION_OUTPUT_INSTRUCTION", None),
                     structured=True,
+                    telemetry_session_id=session.session_id,
                 )
                 stage_reply = module.apply_evaluation(session, evaluation_result)
                 _append_debug_message(
@@ -216,6 +230,7 @@ def _run_stage_loop(session: Session) -> Session:
                     context=session.stage_context,
                     output_instruction=getattr(module, "COACHING_OUTPUT_INSTRUCTION", None),
                     structured=True,
+                    telemetry_session_id=session.session_id,
                 )
                 stage_reply = module.apply_production(session, coaching_result)
                 _append_debug_message(
@@ -284,10 +299,22 @@ def init_session(session_id: str | None = None) -> Session:
 def handle_user_msg(session_id: str, user_message: str) -> Session:
     """Apply one user turn, execute the V3.1 state loop, persist, and return."""
     session = _require_session(session_id)
+    is_first_user_turn = session.turn_count == 0
+    was_terminal_session = session.completed or session.cancelled
 
     session.evaluation_message = None
     session.coach_message = None
     session.debug_message = None
+
+    # Telemetry is a non-critical side effect. It must never affect the
+    # controller state machine or user-visible response.
+    if is_first_user_turn:
+        telemetry.record_session_started(
+            session_id=session.session_id,
+            stage=session.stage,
+            state=session.state,
+            turns_count=session.turn_count,
+        )
 
     session.user_message = user_message
     session.turn_count += 1
@@ -299,6 +326,28 @@ def handle_user_msg(session_id: str, user_message: str) -> Session:
     if session.coach_message:
         session.chat_history.append(
             ChatMessage(role=ChatRole.ASSISTANT, message=session.coach_message)
+        )
+
+    # Telemetry is intentionally best-effort and content-free. Later persistence
+    # can replace the sink without changing controller orchestration.
+    session_status = _session_status(session)
+    telemetry.record_session_updated(
+        session_id=session.session_id,
+        stage=session.stage,
+        state=session.state,
+        turns_count=session.turn_count,
+        synthesis_generated=None,
+        pathways_generated=None,
+        pdf_downloaded=None,
+        status=session_status,
+    )
+    if session_status is not None and not was_terminal_session:
+        telemetry.record_session_closed(
+            session_id=session.session_id,
+            stage=session.stage,
+            state=session.state,
+            turns_count=session.turn_count,
+            status=session_status,
         )
 
     state_store.save_session(session)
