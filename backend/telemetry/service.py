@@ -7,13 +7,16 @@ coaching flow.
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.telemetry.postgres_sink import PostgresTelemetrySink
 from backend.telemetry.sinks import ConsoleTelemetrySink, NoopTelemetrySink
 
 
+logger = logging.getLogger(__name__)
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 FALSY_VALUES = {"0", "false", "no", "off"}
 MAX_ERROR_MESSAGE_LENGTH = 300
@@ -28,6 +31,7 @@ BLOCKED_METADATA_KEYS = {
     "raw_output",
     "user_message",
 }
+_WARNED_KEYS: set[str] = set()
 
 
 def _telemetry_enabled() -> bool:
@@ -47,17 +51,44 @@ def _telemetry_enabled() -> bool:
     return True
 
 
-def _get_sink() -> ConsoleTelemetrySink | NoopTelemetrySink:
+def _warn_once(key: str, message: str) -> None:
+    if key in _WARNED_KEYS:
+        return None
+
+    _WARNED_KEYS.add(key)
+    logger.warning(message)
+    return None
+
+
+def _get_sink() -> ConsoleTelemetrySink | NoopTelemetrySink | PostgresTelemetrySink:
     if not _telemetry_enabled():
         return NoopTelemetrySink()
 
     sink_name = os.getenv("TELEMETRY_SINK", "console").strip().lower()
 
+    if sink_name == "noop":
+        return NoopTelemetrySink()
+
     if sink_name == "console":
         return ConsoleTelemetrySink()
 
-    # Unsupported sinks are treated as console during this console-first phase.
-    # This keeps Render/local deployments observable without failing startup.
+    if sink_name == "postgres":
+        database_url = os.getenv("TELEMETRY_DATABASE_URL")
+        if not database_url:
+            _warn_once(
+                "postgres_missing_database_url",
+                "Postgres telemetry requested without TELEMETRY_DATABASE_URL; using no-op sink",
+            )
+            return NoopTelemetrySink()
+
+        return PostgresTelemetrySink(database_url=database_url)
+
+    # Unsupported sinks are treated as console so deployments remain observable
+    # without failing startup.
+    _warn_once(
+        f"unsupported_sink_{sink_name}",
+        f"Unsupported TELEMETRY_SINK={sink_name!r}; using console telemetry sink",
+    )
     return ConsoleTelemetrySink()
 
 

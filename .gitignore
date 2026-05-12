@@ -6,3 +6,4 @@ __pycache__/
 .streamlit/secrets.toml
 .coachv3_state.sqlite3
 .DS_Store
+connect-render-db.sh

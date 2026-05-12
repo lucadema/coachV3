@@ -1,8 +1,4 @@
-"""Telemetry output sinks.
-
-This console-first implementation intentionally avoids persistence and network
-calls. Later database/PostHog sinks can implement the same small ``record`` seam.
-"""
+"""Telemetry output sinks."""
 
 from __future__ import annotations
 
