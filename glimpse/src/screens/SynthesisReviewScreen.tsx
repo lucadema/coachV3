@@ -5,11 +5,9 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
+import type { SynthesisReviewMode } from '../types/synthesis'
 
-export type SynthesisReviewMode =
-  | 'review'
-  | 'refinement_open'
-  | 'awaiting_pathways_after_refinement'
+export type { SynthesisReviewMode }
 
 type SynthesisReviewScreenProps = {
   error?: string | null

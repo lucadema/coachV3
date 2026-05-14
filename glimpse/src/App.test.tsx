@@ -24,8 +24,31 @@ afterEach(() => {
   vi.clearAllMocks()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  window.history.replaceState({}, '', '/')
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: undefined,
+    writable: true,
+  })
   vi.useRealTimers()
 })
+
+function stubMatchMedia(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn((query: string): MediaQueryList => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches,
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+    writable: true,
+  })
+}
 
 async function advanceToInformationScreen() {
   await act(async () => {
@@ -42,6 +65,58 @@ async function advanceToInformationScreen() {
 async function flushPromises() {
   await act(async () => undefined)
 }
+
+describe('App experience mode', () => {
+  it('defaults to the desktop experience when viewport detection is unavailable', () => {
+    render(<App />)
+
+    expect(screen.getByAltText('Aether')).toBeTruthy()
+    expect(screen.queryByText('Aether Glimpse mobile experience')).toBeNull()
+  })
+
+  it('renders the mobile placeholder at the mobile breakpoint', () => {
+    stubMatchMedia(true)
+
+    render(<App />)
+
+    expect(screen.getByTestId('mobile-experience')).toBeTruthy()
+  })
+
+  it.each([360, 375, 390, 414, 430])(
+    'renders the mobile branch at %ipx viewport width',
+    (width) => {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: width,
+        writable: true,
+      })
+      stubMatchMedia(width <= 767)
+
+      render(<App />)
+
+      expect(screen.getByTestId('mobile-experience')).toBeTruthy()
+    },
+  )
+
+  it('allows the desktop experience query override', () => {
+    stubMatchMedia(true)
+    window.history.replaceState({}, '', '/?experience=desktop')
+
+    render(<App />)
+
+    expect(screen.getByAltText('Aether')).toBeTruthy()
+    expect(screen.queryByTestId('mobile-experience')).toBeNull()
+  })
+
+  it('allows the mobile experience query override', () => {
+    stubMatchMedia(false)
+    window.history.replaceState({}, '', '/?experience=mobile')
+
+    render(<App />)
+
+    expect(screen.getByTestId('mobile-experience')).toBeTruthy()
+  })
+})
 
 describe('App backend connection flow', () => {
   it('shows a recoverable error if session initialisation fails', async () => {
@@ -399,5 +474,107 @@ describe('App backend connection flow', () => {
     expect(screen.getByText('Here is the refined synthesis.')).toBeTruthy()
     expect(screen.getByRole('button', { name: /continue/i })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /not quite/i })).toBeNull()
+  })
+
+  it('completes the backend-connected journey in the mobile experience', async () => {
+    vi.useFakeTimers()
+    stubMatchMedia(true)
+    window.history.replaceState({}, '', '/?experience=mobile')
+
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          session_id: 'session-1',
+          stage: 'classification',
+          state: 'evaluating',
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'What feels most unresolved?',
+          session: {
+            session_id: 'session-1',
+            stage: 'coaching',
+            state: 'guiding',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'Here is the synthesis.',
+          session: {
+            session_id: 'session-1',
+            stage: 'synthesis',
+            state: 'presenting',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: '## Pathway one\nDetails',
+          session: {
+            session_id: 'session-1',
+            stage: 'pathways',
+            state: 'presenting',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          coach_message: 'Closure text',
+          session: {
+            session_id: 'session-1',
+            stage: 'closure',
+            state: 'presenting',
+          },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await advanceToInformationScreen()
+
+    fireEvent.click(screen.getByRole('button', { name: /start session/i }))
+    await flushPromises()
+    fireEvent.change(screen.getByLabelText(/describe your professional challenge/i), {
+      target: { value: 'I need to reset expectations with my team' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+    fireEvent.change(screen.getByLabelText(/reply to aether/i), {
+      target: { value: 'The tradeoff is unclear' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+    fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
+    await flushPromises()
+
+    expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /expand pathway one/i }))
+    expect(screen.getByText('Details')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /close expanded pathway/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await flushPromises()
+
+    expect(
+      screen.getByText('Before you go, please tell us what you thought of the Aether Glimpse experience.'),
+    ).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /yes, aether helped me think about my challenge/i,
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /choose all options that apply/i }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /receiving structured pathways rather than a generic answer/i,
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+
+    expect(screen.getByText(/We hope/i)).toBeTruthy()
+    expect(screen.queryByText('Closure text')).toBeNull()
   })
 })
