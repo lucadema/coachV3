@@ -410,11 +410,11 @@ function App() {
     setStep('closed')
   }
 
-  function handleDownloadPdf(pdfSource: SessionPdfSourceData = sessionContent) {
+  async function handleDownloadPdf(pdfSource: SessionPdfSourceData = sessionContent) {
     setFrontendError(null)
 
     try {
-      downloadSessionPdf(buildSessionPdfData(pdfSource))
+      await downloadSessionPdf(buildSessionPdfData(pdfSource))
     } catch (error) {
       setFrontendError(
         getErrorMessage(
