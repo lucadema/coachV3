@@ -62,7 +62,7 @@ export function InformationScreen({
           disabled={isLoading}
           label={isLoading ? 'Starting...' : 'Start Session'}
           onClick={onStartSession}
-          tone="outline"
+          tone={isLoading ? 'outline' : 'filled'}
         />
       </div>
       <AetherWatermark className="absolute left-1/2 top-[4.3%] -translate-x-1/2" />

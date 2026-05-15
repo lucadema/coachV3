@@ -404,6 +404,23 @@ export function useGlimpseSession() {
     setStep('closed')
   }
 
+  function handleStartNewSession() {
+    setSessionId(null)
+    setSessionView(null)
+    setCoachMessage('')
+    setResolvedScreen(null)
+    setLastBackendPreviousScreen(null)
+    setLastBackendStayedInCoaching(null)
+    setSynthesisMode('review')
+    setCachedPathwaysMessage('')
+    setFeedback(createDefaultFeedbackState())
+    setSessionContent({})
+    setFrontendError(null)
+    setIsInitialisingSession(false)
+    setIsSubmittingProblem(false)
+    setStep('information')
+  }
+
   async function handleDownloadPdf(pdfSource: SessionPdfSourceData = sessionContent) {
     setFrontendError(null)
 
@@ -457,6 +474,7 @@ export function useGlimpseSession() {
     handleContinueToPathways,
     handlePathwaysContinue,
     handleFeedbackClose,
+    handleStartNewSession,
     handleDownloadPathwaysPdf,
   }
 }

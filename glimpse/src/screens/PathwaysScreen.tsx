@@ -64,12 +64,46 @@ function DownloadButton({ onDownloadPdf }: { onDownloadPdf: () => void }) {
       type="button"
       aria-label="Download session PDF"
       onClick={onDownloadPdf}
-      className="absolute left-[43px] top-[592px] size-[22px] cursor-pointer rounded-[8px] border-[1.5px] border-[#dbec03] bg-transparent"
+      className="absolute left-[39px] top-[588px] flex size-[30px] cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-[#dbec03] bg-transparent text-[#75b83b]"
     >
-      <span className="absolute left-1/2 top-[5px] h-[8px] w-[1.5px] -translate-x-1/2 bg-[#75b83b]" />
-      <span className="absolute left-[7px] top-[11px] h-[1.5px] w-[8px] bg-[#75b83b]" />
-      <span className="absolute left-[6px] top-[14px] h-[1.5px] w-[10px] bg-[#75b83b]" />
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="size-[18px]"
+      >
+        <path
+          d="M12 4v10m0 0 4-4m-4 4-4-4M5 17.5V20h14v-2.5"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+      </svg>
     </button>
+  )
+}
+
+function ExpandedPathwayBody({ body }: { body: string }) {
+  const sectionMatch = body.match(/Orientation:\s*([\s\S]*?)(?:\n\s*)?Conditions:\s*([\s\S]*)/i)
+
+  if (!sectionMatch) {
+    return (
+      <p className="m-0 whitespace-pre-wrap text-center text-[20px] font-light leading-none tracking-[-0.8px] text-[#294744]">
+        {body}
+      </p>
+    )
+  }
+
+  const [, orientation, conditions] = sectionMatch
+
+  return (
+    <div className="text-center text-[20px] leading-[1.18] tracking-[-0.8px] text-[#294744]">
+      <h2 className="m-0 text-[20px] font-normal leading-[1.18]">Orientation:</h2>
+      <p className="m-0 whitespace-pre-wrap font-light leading-[1.18]">{orientation.trim()}</p>
+      <h2 className="m-0 mt-[28px] text-[20px] font-normal leading-[1.18]">Conditions:</h2>
+      <p className="m-0 whitespace-pre-wrap font-light leading-[1.18]">{conditions.trim()}</p>
+    </div>
   )
 }
 
@@ -159,9 +193,7 @@ export function PathwaysScreen({
               {expandedPathway.title.toUpperCase()}
             </h1>
             <div className="absolute left-[36px] top-[84px] max-h-[382px] w-[528px] overflow-auto">
-              <p className="m-0 whitespace-pre-wrap text-center text-[20px] font-light leading-none tracking-[-0.8px] text-[#294744]">
-                {expandedPathway.body}
-              </p>
+              <ExpandedPathwayBody body={expandedPathway.body} />
             </div>
           </div>
         ) : (
@@ -197,7 +229,7 @@ export function PathwaysScreen({
                 onClick={() => {
                   void handleContinue()
                 }}
-                tone="outline"
+                tone={isLoading ? 'outline' : 'filled'}
               />
             </div>
           </>

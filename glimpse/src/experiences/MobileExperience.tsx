@@ -102,5 +102,5 @@ export function MobileExperience({ flow }: MobileExperienceProps) {
     )
   }
 
-  return <MobileClosedScreen />
+  return <MobileClosedScreen onStartNewSession={flow.handleStartNewSession} />
 }

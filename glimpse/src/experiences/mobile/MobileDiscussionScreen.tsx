@@ -39,8 +39,8 @@ export function MobileDiscussionScreen({
       <MobileWatermark />
       <MobileHalfCard top={80}>
         <MobilePrimaryIcon variant="aether" />
-        <div className="absolute left-[21px] top-[95px] max-h-[226px] w-[310px] overflow-auto">
-          <p className="m-0 whitespace-pre-wrap text-center text-[16px] font-light leading-none tracking-[-0.64px]">
+        <div className="absolute left-[21px] top-[95px] max-h-[236px] w-[310px] overflow-x-hidden overflow-y-auto">
+          <p className="m-0 whitespace-pre-wrap text-center text-[16px] font-light leading-[18px] tracking-[-0.64px]">
             {coachMessage || 'Aether coaching response question here...'}
           </p>
         </div>
@@ -49,12 +49,13 @@ export function MobileDiscussionScreen({
         <MobilePrimaryIcon variant="user" />
         <textarea
           aria-label="Reply to Aether"
+          autoFocus
           disabled={isLoading}
           value={userMessage}
           onChange={(event) => {
             setUserMessage(event.target.value)
           }}
-          placeholder="Your response here..."
+          placeholder=""
           className="absolute left-[21px] top-[95px] h-[200px] w-[310px] resize-none bg-transparent text-center text-[16px] font-medium italic leading-[21px] text-[#294744] outline-none placeholder:text-[#294744] disabled:cursor-wait"
         />
       </MobileHalfCard>

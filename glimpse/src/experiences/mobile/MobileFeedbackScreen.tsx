@@ -80,7 +80,12 @@ export function MobileFeedbackScreen({
         <p className="absolute left-[22px] top-[489px] m-0 w-[310px] text-center text-[16px] font-light leading-none tracking-[-0.64px]">
           What was the most valuable moment in this session for you?
         </p>
-        <div className="absolute left-[7px] top-[543px] w-[340px] rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]">
+        <div
+          className={[
+            'absolute left-[7px] top-[543px] w-[340px] overflow-hidden rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
+            isDropdownOpen ? 'h-[148px]' : 'h-[42px]',
+          ].join(' ')}
+        >
           <button
             type="button"
             aria-expanded={isDropdownOpen}
@@ -96,7 +101,7 @@ export function MobileFeedbackScreen({
             </span>
           </button>
           {isDropdownOpen ? (
-            <div className="px-[14px] pb-[14px]">
+            <div className="max-h-[96px] overflow-y-auto px-[14px] pb-[10px]">
               {valuableMomentOptions.map((option) => {
                 const isSelected = feedback.valuableMoments.includes(option)
 
@@ -108,7 +113,7 @@ export function MobileFeedbackScreen({
                     onClick={() => {
                       toggleOption(option)
                     }}
-                    className="mt-[10px] flex items-center gap-[8px] text-left text-[12px] leading-none"
+                    className="mt-[8px] flex items-center gap-[8px] text-left text-[11px] leading-tight"
                   >
                     <MobileSelectionDot selected={isSelected} />
                     <span>{option}</span>

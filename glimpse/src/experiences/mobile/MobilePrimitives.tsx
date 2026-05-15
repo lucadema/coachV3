@@ -31,19 +31,23 @@ export function MobileFrame({ children, label = 'Aether Glimpse mobile experienc
 
 export function MobileWatermark() {
   return (
-    <div className="absolute left-1/2 top-[37px] h-[25px] w-[38px] -translate-x-1/2 opacity-[0.07]">
-      <img
-        src={watermarkLeft}
-        alt=""
-        aria-hidden="true"
-        className="absolute bottom-0 left-0 top-0 w-[21px]"
-      />
-      <img
-        src={watermarkRight}
-        alt=""
-        aria-hidden="true"
-        className="absolute bottom-0 right-0 top-0 w-[21px]"
-      />
+    <div className="pointer-events-none absolute left-1/2 top-[37px] h-[25px] w-[38px] -translate-x-1/2 opacity-[0.07]">
+      <div className="absolute inset-[0.13%_44.81%_0_0]">
+        <img
+          src={watermarkLeft}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full max-w-none"
+        />
+      </div>
+      <div className="absolute inset-[0_0_0.13%_44.81%]">
+        <img
+          src={watermarkRight}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full max-w-none"
+        />
+      </div>
     </div>
   )
 }
@@ -87,8 +91,10 @@ export function MobileButton({ disabled = false, label, onClick, top = 762 }: Mo
       disabled={disabled}
       onClick={onClick}
       className={[
-        'absolute left-[40px] h-[42px] w-[310px] rounded-[16px] border-[1.5px] border-[#dbec03] bg-transparent text-center text-[17px] font-bold leading-none',
-        disabled ? 'cursor-not-allowed text-[rgba(41,71,68,0.5)]' : 'cursor-pointer text-[rgba(41,71,68,0.6)]',
+        'absolute left-[40px] h-[42px] w-[310px] rounded-[16px] border-[1.5px] border-[#dbec03] text-center text-[17px] font-bold leading-none',
+        disabled
+          ? 'cursor-not-allowed bg-transparent text-[rgba(41,71,68,0.5)]'
+          : 'cursor-pointer bg-[linear-gradient(90deg,#dbec03_0%,#75b83b_100%)] text-white',
       ].join(' ')}
       style={{ top }}
     >

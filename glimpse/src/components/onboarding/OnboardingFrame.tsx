@@ -34,7 +34,7 @@ export function OnboardingFrame({ background = 'launch', children }: OnboardingF
   }, [])
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f3ef]">
+    <main className="relative flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#f4f3ef]">
       {background === 'launch' ? (
         <img
           src={launchBackground}
@@ -44,12 +44,20 @@ export function OnboardingFrame({ background = 'launch', children }: OnboardingF
         />
       ) : null}
       <div
-        className="relative h-[1024px] w-[1451px] origin-center"
+        className="relative overflow-hidden"
         style={{
-          transform: `scale(${scale})`,
+          height: DESIGN_HEIGHT * scale,
+          width: DESIGN_WIDTH * scale,
         }}
       >
-        {children}
+        <div
+          className="relative h-[1024px] w-[1451px] origin-top-left"
+          style={{
+            transform: `scale(${scale})`,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </main>
   )

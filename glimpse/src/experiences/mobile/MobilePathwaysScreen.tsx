@@ -24,6 +24,29 @@ const introText =
 const downloadNotice =
   'You’re welcome to keep your problem statement and resolution pathways from this session. The download does not include the coaching conversation that produced them.'
 
+function MobileExpandedPathwayBody({ body }: { body: string }) {
+  const sectionMatch = body.match(/Orientation:\s*([\s\S]*?)(?:\n\s*)?Conditions:\s*([\s\S]*)/i)
+
+  if (!sectionMatch) {
+    return (
+      <p className="m-0 whitespace-pre-wrap text-center text-[16px] font-light leading-none tracking-[-0.64px]">
+        {body}
+      </p>
+    )
+  }
+
+  const [, orientation, conditions] = sectionMatch
+
+  return (
+    <div className="text-center text-[16px] leading-[1.18] tracking-[-0.64px]">
+      <h2 className="m-0 text-[16px] font-normal leading-[1.18]">Orientation:</h2>
+      <p className="m-0 whitespace-pre-wrap font-light leading-[1.18]">{orientation.trim()}</p>
+      <h2 className="m-0 mt-[24px] text-[16px] font-normal leading-[1.18]">Conditions:</h2>
+      <p className="m-0 whitespace-pre-wrap font-light leading-[1.18]">{conditions.trim()}</p>
+    </div>
+  )
+}
+
 export function MobilePathwaysScreen({
   error = null,
   isLoading = false,
@@ -49,17 +72,17 @@ export function MobilePathwaysScreen({
               onClick={() => {
                 setExpandedPathwayIndex(null)
               }}
-              className="absolute right-[8px] top-[11px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[18px] text-[#75b83b]"
+              className="absolute right-[2px] top-[5px] flex size-[34px] items-center justify-center p-[6px] text-[#75b83b]"
             >
-              x
+              <span className="flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[18px] leading-none">
+                x
+              </span>
             </button>
             <h1 className="absolute left-[48px] top-[36px] m-0 w-[244px] text-center text-[14px] font-bold leading-none">
               {expandedPathway.title.toUpperCase()}
             </h1>
             <div className="absolute left-[31px] top-[80px] max-h-[500px] w-[278px] overflow-auto">
-              <p className="m-0 whitespace-pre-wrap text-center text-[16px] font-light leading-none tracking-[-0.64px]">
-                {expandedPathway.body}
-              </p>
+              <MobileExpandedPathwayBody body={expandedPathway.body} />
             </div>
           </article>
         ) : (
@@ -71,16 +94,10 @@ export function MobilePathwaysScreen({
               {(pathways.length > 0 ? pathways : [{ title: rawPathwaysText || 'No pathway details are available yet.', body: '' }])
                 .slice(0, 4)
                 .map((pathway, index) => (
-                  <article
+                  <div
                     key={`${pathway.title}-${index}`}
                     className="relative h-[70px] rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]"
                   >
-                    <span aria-hidden="true" className="absolute left-[12px] top-[15px] text-[28px] font-thin text-[rgba(117,184,59,0.35)]">
-                      ♡
-                    </span>
-                    <h2 className="absolute left-[54px] top-1/2 m-0 w-[232px] -translate-y-1/2 text-center text-[14px] font-bold leading-none">
-                      {pathway.title.toUpperCase()}
-                    </h2>
                     {pathway.body ? (
                       <button
                         type="button"
@@ -89,12 +106,16 @@ export function MobilePathwaysScreen({
                         onClick={() => {
                           setExpandedPathwayIndex(index)
                         }}
-                        className="absolute right-[10px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[22px] font-light leading-none text-[#75b83b]"
+                        className="absolute inset-0 flex items-center justify-center rounded-[24px] px-[34px] text-center text-[14px] font-bold leading-none disabled:cursor-wait"
                       >
-                        +
+                        {pathway.title.toUpperCase()}
                       </button>
-                    ) : null}
-                  </article>
+                    ) : (
+                      <h2 className="absolute inset-x-[34px] top-1/2 m-0 -translate-y-1/2 text-center text-[14px] font-bold leading-none">
+                        {pathway.title.toUpperCase()}
+                      </h2>
+                    )}
+                  </div>
                 ))}
             </div>
             <button

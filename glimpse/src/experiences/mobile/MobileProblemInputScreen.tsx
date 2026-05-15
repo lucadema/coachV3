@@ -39,12 +39,13 @@ export function MobileProblemInputScreen({
         <MobilePrimaryIcon variant="user" />
         <textarea
           aria-label="Describe your professional challenge"
+          autoFocus
           disabled={isLoading}
           value={problemText}
           onChange={(event) => {
             setProblemText(event.target.value)
           }}
-          placeholder="Your response here..."
+          placeholder=""
           className="absolute left-[21px] top-[95px] h-[200px] w-[310px] resize-none bg-transparent text-center text-[16px] font-medium italic leading-[21px] text-[#294744] outline-none placeholder:text-[#294744] disabled:cursor-wait"
         />
       </MobileHalfCard>

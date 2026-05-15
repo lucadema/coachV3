@@ -105,7 +105,7 @@ export function DesktopExperience({ flow }: DesktopExperienceProps) {
   }
 
   if (flow.step === 'closed') {
-    return <ClosedScreen />
+    return <ClosedScreen onStartNewSession={flow.handleStartNewSession} />
   }
 
   if (flow.step === 'backend_response') {

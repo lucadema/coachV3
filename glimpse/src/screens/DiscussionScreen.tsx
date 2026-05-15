@@ -5,6 +5,7 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
+import { ProcessingIndicator } from '../components/onboarding/ProcessingIndicator'
 
 type DiscussionScreenProps = {
   coachMessage: string
@@ -71,15 +72,20 @@ export function DiscussionScreen({
         />
         <textarea
           aria-label="Reply to Aether"
+          autoFocus
           disabled={isLoading}
           value={userMessage}
           onChange={(event) => {
             setUserMessage(event.target.value)
           }}
-          placeholder="Your response here..."
+          placeholder=""
           className="absolute left-[38px] top-[111px] h-[115px] w-[608px] resize-none bg-transparent text-center text-[20px] font-medium leading-[22px] text-[#294744] italic outline-none placeholder:text-[rgba(41,71,68,0.25)] disabled:cursor-wait"
         />
-        {error ? (
+        {isLoading ? (
+          <div className="absolute left-[92px] top-[226px] w-[500px]">
+            <ProcessingIndicator />
+          </div>
+        ) : error ? (
           <p
             role="alert"
             className="absolute left-[92px] top-[226px] m-0 w-[500px] text-center text-[13px] font-light leading-[1.2] text-[#294744]"

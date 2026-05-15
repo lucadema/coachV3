@@ -1,6 +1,10 @@
 import { MobileButton, MobileFrame, MobileWatermark } from './MobilePrimitives'
 
-export function MobileClosedScreen() {
+type MobileClosedScreenProps = {
+  onStartNewSession: () => void
+}
+
+export function MobileClosedScreen({ onStartNewSession }: MobileClosedScreenProps) {
   return (
     <MobileFrame label="Aether Glimpse mobile closed">
       <MobileWatermark />
@@ -15,7 +19,7 @@ export function MobileClosedScreen() {
         <br />
         of Aether
       </h1>
-      <MobileButton label="Start New Session" onClick={() => window.location.reload()} top={766} />
+      <MobileButton label="Start New Session" onClick={onStartNewSession} top={766} />
     </MobileFrame>
   )
 }

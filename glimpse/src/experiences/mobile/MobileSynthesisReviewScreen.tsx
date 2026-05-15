@@ -88,12 +88,13 @@ export function MobileSynthesisReviewScreen({
             <MobilePrimaryIcon variant="user" />
             <textarea
               aria-label="Refinement feedback"
+              autoFocus
               disabled={isLoading}
               value={refinementText}
               onChange={(event) => {
                 setRefinementText(event.target.value)
               }}
-              placeholder="Your response here..."
+              placeholder=""
               className="absolute left-[21px] top-[95px] h-[200px] w-[310px] resize-none bg-transparent text-center text-[16px] font-medium italic leading-[21px] text-[#294744] outline-none placeholder:text-[#294744] disabled:cursor-wait"
             />
           </MobileHalfCard>

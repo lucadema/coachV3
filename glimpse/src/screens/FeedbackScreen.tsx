@@ -113,8 +113,8 @@ function ValuableMomentsDropdown({
   return (
     <div
       className={[
-        'absolute left-[66px] top-[459px] w-[512px] rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
-        isOpen ? 'h-[191px]' : 'h-[42px]',
+        'absolute left-[66px] top-[459px] w-[512px] overflow-hidden rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
+        isOpen ? 'h-[124px]' : 'h-[42px]',
       ].join(' ')}
     >
       <button
@@ -131,7 +131,7 @@ function ValuableMomentsDropdown({
       </button>
 
       {isOpen ? (
-        <div className="absolute left-[14px] top-[52px] flex flex-col gap-[9px]">
+        <div className="absolute left-[14px] top-[52px] flex max-h-[62px] w-[484px] flex-col gap-[7px] overflow-y-auto pr-[8px]">
           {valuableMomentOptions.map((option) => {
             const isSelected = feedback.valuableMoments.includes(option)
 
@@ -227,7 +227,7 @@ export function FeedbackScreen({
             onClick={() => {
               onClose(feedback)
             }}
-            tone="outline"
+            tone="filled"
           />
         </div>
       </section>

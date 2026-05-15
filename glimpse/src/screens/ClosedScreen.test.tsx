@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ClosedScreen } from './ClosedScreen'
 
 afterEach(() => {
@@ -10,7 +10,7 @@ afterEach(() => {
 
 describe('ClosedScreen', () => {
   it('renders the final close message', () => {
-    render(<ClosedScreen />)
+    render(<ClosedScreen onStartNewSession={vi.fn()} />)
 
     expect(screen.getByText('We hope you’ve enjoyed this glimpse of Aether')).toBeTruthy()
   })

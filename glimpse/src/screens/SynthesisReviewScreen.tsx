@@ -5,6 +5,7 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
+import { ProcessingIndicator } from '../components/onboarding/ProcessingIndicator'
 import type { SynthesisReviewMode } from '../types/synthesis'
 
 export type { SynthesisReviewMode }
@@ -63,8 +64,8 @@ function SynthesisCard({
       >
         {reviewIntro}
       </p>
-      <div className="absolute left-[42px] top-[214px] max-h-[190px] w-[600px] overflow-auto">
-        <p className="m-0 whitespace-pre-wrap text-center text-[20px] font-medium leading-none tracking-[-0.8px] text-[#294744]">
+      <div className="absolute left-[42px] top-[214px] max-h-[260px] w-[600px] overflow-x-hidden overflow-y-auto">
+        <p className="m-0 whitespace-pre-wrap text-center text-[20px] font-medium leading-[22px] tracking-[-0.8px] text-[#294744]">
           {synthesisText || 'No synthesis is available yet.'}
         </p>
       </div>
@@ -80,7 +81,7 @@ function SynthesisCard({
           onClick={() => {
             void (isAwaitingPathways ? onContinueToPathways() : onAccept())
           }}
-          tone="outline"
+          tone={isLoading ? 'outline' : 'filled'}
         />
       </div>
       {isAwaitingPathways ? null : (
@@ -89,7 +90,7 @@ function SynthesisCard({
             disabled={isLoading}
             label="Not quite"
             onClick={onOpenRefinement}
-            tone="outline"
+            tone={isLoading ? 'outline' : 'filled'}
           />
         </div>
       )}
@@ -150,14 +151,20 @@ export function SynthesisReviewScreen({
           />
           <textarea
             aria-label="Refinement feedback"
+            autoFocus
             disabled={isLoading}
             value={refinementText}
             onChange={(event) => {
               setRefinementText(event.target.value)
             }}
-            placeholder="Your response here..."
+            placeholder=""
             className="absolute left-[38px] top-[111px] h-[115px] w-[608px] resize-none bg-transparent text-center text-[20px] font-medium leading-[22px] text-[#294744] italic outline-none placeholder:text-[rgba(41,71,68,0.25)] disabled:cursor-wait"
           />
+          {isLoading ? (
+            <div className="absolute left-[92px] top-[226px] w-[500px]">
+              <ProcessingIndicator />
+            </div>
+          ) : null}
           <div className="absolute left-[255px] top-[263px]">
             <OnboardingButton
               disabled={!canSubmitRefinement}
