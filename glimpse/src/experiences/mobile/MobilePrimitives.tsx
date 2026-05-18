@@ -1,15 +1,45 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import launchBackground from '../../assets/launch/launch-background.jpg'
 import watermarkLeft from '../../assets/onboarding/watermark-left.svg'
 import watermarkRight from '../../assets/onboarding/watermark-right.svg'
 import { iconAetherCoach, iconUserCloud } from './mobileAssets'
+
+const MOBILE_DESIGN_WIDTH = 390
+const MOBILE_DESIGN_HEIGHT = 844
 
 type MobileFrameProps = {
   children: ReactNode
   label?: string
 }
 
+function getMobileCanvasScale() {
+  if (typeof window === 'undefined') {
+    return 1
+  }
+
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth
+
+  return Math.min(viewportWidth / MOBILE_DESIGN_WIDTH, 1)
+}
+
 export function MobileFrame({ children, label = 'Aether Glimpse mobile experience' }: MobileFrameProps) {
+  const [scale, setScale] = useState(getMobileCanvasScale)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScale(getMobileCanvasScale())
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
   return (
     <main
       aria-label={label}
@@ -22,8 +52,21 @@ export function MobileFrame({ children, label = 'Aether Glimpse mobile experienc
         aria-hidden="true"
         className="pointer-events-none fixed left-1/2 top-0 h-full min-h-[844px] w-[1196px] max-w-none -translate-x-1/2 object-cover object-center"
       />
-      <div className="relative mx-auto min-h-[844px] w-full max-w-[390px] overflow-visible">
-        {children}
+      <div
+        className="relative mx-auto overflow-visible"
+        style={{
+          height: MOBILE_DESIGN_HEIGHT * scale,
+          width: MOBILE_DESIGN_WIDTH * scale,
+        }}
+      >
+        <div
+          className="relative h-[844px] w-[390px] origin-top-left"
+          style={{
+            transform: `scale(${scale})`,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </main>
   )
