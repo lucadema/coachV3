@@ -16,9 +16,8 @@ export function ClosedScreen({ onStartNewSession }: ClosedScreenProps) {
         </h1>
         <div className="absolute left-[640px] top-[703px]">
           <OnboardingButton
-            label="Start a New Session"
+            label="Start New Session"
             onClick={onStartNewSession}
-            tone="filled"
           />
         </div>
       </section>

@@ -26,7 +26,7 @@ export function MobilePrivacyScreen({
           <p className="m-0 mt-[29px]">You are in control of what you share.</p>
           <p className="m-0">Take your time. Think clearly.</p>
         </div>
-        <label className="absolute left-[38px] top-[604px] flex cursor-pointer items-start gap-[10px] text-[#294744]">
+        <label className="absolute left-[28px] top-[596px] flex w-[298px] cursor-pointer items-start gap-[12px] text-[#294744]">
           <input
             type="checkbox"
             checked={hasAcknowledged}
@@ -36,12 +36,12 @@ export function MobilePrivacyScreen({
             className="sr-only"
           />
           <MobileSelectionDot selected={hasAcknowledged} />
-          <span className="w-[262px] text-[11px] font-light leading-none tracking-[-0.44px]">
+          <span className="w-[268px] text-[11px] font-light leading-[1.18] tracking-[-0.44px]">
             I understand that my session content is confidential, used only to facilitate this coaching conversation, and handled in accordance with Aether’s privacy policy.
           </span>
         </label>
       </MobileFullCard>
-      <MobileButton disabled={!hasAcknowledged} label="Next" onClick={onContinue} />
+      <MobileButton disabled={!hasAcknowledged} label="Continue" onClick={onContinue} />
     </MobileFrame>
   )
 }

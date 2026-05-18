@@ -1,4 +1,3 @@
-import radioInactive from '../assets/onboarding/radio-inactive.svg'
 import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
@@ -38,7 +37,7 @@ export function PrivacyScreen({
       <p className="absolute inset-[26.66%_36.8%_44.04%_36.8%] m-0 whitespace-pre-line text-center text-[20px] font-light leading-[1.18] tracking-[-0.8px] text-[#294744]">
         {privacyMessage}
       </p>
-      <label className="absolute inset-[66.7%_40.11%_28.13%_40.25%] flex cursor-pointer items-start gap-[10px] text-[#294744]">
+      <label className="absolute left-[580px] top-[678px] flex w-[292px] cursor-pointer items-start gap-[12px] text-[#294744]">
         <input
           type="checkbox"
           checked={hasAcknowledged}
@@ -47,7 +46,7 @@ export function PrivacyScreen({
           }}
           className="sr-only"
         />
-        <span className="relative mt-[2px] h-[14px] w-[14px] shrink-0">
+        <span className="relative mt-[1px] flex size-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#75b83b] bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.7)]">
           {hasAcknowledged ? (
             <>
               <span
@@ -55,27 +54,21 @@ export function PrivacyScreen({
                 className="absolute inset-0 rounded-full bg-[linear-gradient(180deg,#dbec03_0%,#75b83b_100%)]"
               />
               <svg
-                viewBox="0 0 14 14"
+                viewBox="0 0 18 18"
                 aria-hidden="true"
                 className="absolute inset-0 h-full w-full"
               >
                 <path
-                  d="M4 7.4L6.1 9.45L10 4.95"
+                  d="M5.1 9.2l2.5 2.45 5.2-6"
                   fill="none"
                   stroke="#ffffff"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="1.6"
+                  strokeWidth="2"
                 />
               </svg>
             </>
           ) : null}
-          <img
-            src={radioInactive}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full"
-          />
         </span>
         <span className="whitespace-pre-line text-[11px] font-light leading-[1.18] tracking-[-0.44px]">
           {acknowledgementMessage}
@@ -84,9 +77,8 @@ export function PrivacyScreen({
       <div className="absolute inset-[75.1%_44.11%_20.8%_44.18%]">
         <OnboardingButton
           disabled={!hasAcknowledged}
-          label="Next"
+          label="Continue"
           onClick={onContinue}
-          tone={hasAcknowledged ? 'filled' : 'outline'}
         />
       </div>
       <AetherWatermark className="absolute left-1/2 top-[4.3%] -translate-x-1/2" />

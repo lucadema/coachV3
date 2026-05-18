@@ -53,7 +53,7 @@ export function ProblemInputScreen({
       <section
         aria-busy={isLoading}
         aria-label="Your response"
-        className="absolute left-[383px] top-[514px] h-[338px] w-[683px]"
+        className="absolute left-[384px] top-[508px] h-[338px] w-[683px]"
       >
         <OnboardingCard className="inset-0" />
         <img
@@ -96,7 +96,6 @@ export function ProblemInputScreen({
 
               onContinue(trimmedProblemText)
             }}
-            tone={canContinue ? 'filled' : 'outline'}
           />
         </div>
       </section>

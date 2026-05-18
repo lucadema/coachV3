@@ -28,7 +28,9 @@ function getRefinementInput() {
 }
 
 function getContinueButton() {
-  return screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement
+  const buttons = screen.getAllByRole('button', { name: /continue/i }) as HTMLButtonElement[]
+
+  return buttons[buttons.length - 1]
 }
 
 describe('SynthesisReviewScreen', () => {
@@ -38,12 +40,12 @@ describe('SynthesisReviewScreen', () => {
     expect(screen.getByText('This is the current synthesis.')).toBeTruthy()
   })
 
-  it('calls onAccept when That’s it is clicked', async () => {
+  it("calls onAccept when That's it is clicked", async () => {
     const user = userEvent.setup()
     const onAccept = vi.fn()
     renderScreen({ onAccept })
 
-    await user.click(screen.getByRole('button', { name: /that’s it/i }))
+    await user.click(screen.getByRole('button', { name: /that's it/i }))
 
     expect(onAccept).toHaveBeenCalledTimes(1)
   })
@@ -103,7 +105,7 @@ describe('SynthesisReviewScreen', () => {
   it('disables controls while loading', () => {
     renderScreen({ isLoading: true, mode: 'refinement_open' })
 
-    expect((screen.getByRole('button', { name: /that’s it/i }) as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByRole('button', { name: /that's it/i }) as HTMLButtonElement).disabled).toBe(
       true,
     )
     expect((screen.getByRole('button', { name: /not quite/i }) as HTMLButtonElement).disabled).toBe(

@@ -14,7 +14,10 @@ function getCanvasScale() {
     return 1
   }
 
-  return Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT, 1)
+  const widthScale = (window.innerWidth - 32) / DESIGN_WIDTH
+  const heightScale = (window.innerHeight - 32) / DESIGN_HEIGHT
+
+  return Math.min(widthScale, heightScale, 1)
 }
 
 export function OnboardingFrame({ background = 'launch', children }: OnboardingFrameProps) {
@@ -34,7 +37,7 @@ export function OnboardingFrame({ background = 'launch', children }: OnboardingF
   }, [])
 
   return (
-    <main className="relative flex h-[100svh] w-screen items-center justify-center overflow-hidden bg-[#f4f3ef]">
+    <main className="relative flex min-h-[100svh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-[#f4f3ef] p-[16px]">
       {background === 'launch' ? (
         <img
           src={launchBackground}

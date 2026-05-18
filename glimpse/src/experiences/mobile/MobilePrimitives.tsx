@@ -14,15 +14,15 @@ export function MobileFrame({ children, label = 'Aether Glimpse mobile experienc
     <main
       aria-label={label}
       data-testid="mobile-experience"
-      className="relative min-h-[100svh] overflow-hidden bg-white text-[#294744]"
+      className="relative min-h-[100svh] overflow-x-hidden overflow-y-auto bg-white text-[#294744]"
     >
       <img
         src={launchBackground}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-0 h-full min-h-[844px] w-[1196px] max-w-none -translate-x-1/2 object-cover object-center"
+        className="pointer-events-none fixed left-1/2 top-0 h-full min-h-[844px] w-[1196px] max-w-none -translate-x-1/2 object-cover object-center"
       />
-      <div className="relative mx-auto h-[844px] w-full max-w-[390px] overflow-hidden">
+      <div className="relative mx-auto min-h-[844px] w-full max-w-[390px] overflow-visible">
         {children}
       </div>
     </main>
@@ -54,7 +54,7 @@ export function MobileWatermark() {
 
 export function MobileFullCard({ children }: { children: ReactNode }) {
   return (
-    <section className="absolute left-[18px] top-[80px] h-[746px] w-[354px] rounded-[30px] border-4 border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]">
+    <section className="absolute left-1/2 top-[80px] h-[746px] w-[calc(100%_-_36px)] max-w-[354px] -translate-x-1/2 rounded-[30px] border-4 border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]">
       {children}
     </section>
   )
@@ -69,7 +69,7 @@ export function MobileHalfCard({
 }) {
   return (
     <section
-      className="absolute left-[18px] h-[371px] w-[354px] rounded-[30px] border-4 border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]"
+      className="absolute left-1/2 h-[371px] w-[calc(100%_-_36px)] max-w-[354px] -translate-x-1/2 rounded-[30px] border-4 border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]"
       style={{ top }}
     >
       {children}
@@ -91,10 +91,8 @@ export function MobileButton({ disabled = false, label, onClick, top = 762 }: Mo
       disabled={disabled}
       onClick={onClick}
       className={[
-        'absolute left-[40px] h-[42px] w-[310px] rounded-[16px] border-[1.5px] border-[#dbec03] text-center text-[17px] font-bold leading-none',
-        disabled
-          ? 'cursor-not-allowed bg-transparent text-[rgba(41,71,68,0.5)]'
-          : 'cursor-pointer bg-[linear-gradient(90deg,#dbec03_0%,#75b83b_100%)] text-white',
+        'absolute left-1/2 h-[42px] w-[calc(100%_-_80px)] max-w-[310px] -translate-x-1/2 rounded-[16px] border-[1.5px] border-[#dbec03] bg-transparent text-center text-[17px] font-bold leading-none text-[rgba(41,71,68,0.5)] transition-colors duration-100 active:bg-[linear-gradient(90deg,#dbec03_0%,#75b83b_100%)] active:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#75b83b]',
+        disabled ? 'cursor-not-allowed' : 'cursor-pointer',
       ].join(' ')}
       style={{ top }}
     >
@@ -134,8 +132,8 @@ export function MobileSelectionDot({ selected }: { selected: boolean }) {
     <span
       aria-hidden="true"
       className={[
-        'inline-block size-[14px] rounded-full border border-[#75b83b]',
-        selected ? 'bg-[linear-gradient(180deg,#dbec03_0%,#75b83b_100%)]' : 'bg-transparent',
+        'inline-block size-[18px] shrink-0 rounded-full border-[1.5px] border-[#75b83b] bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.65)]',
+        selected ? 'bg-[linear-gradient(180deg,#dbec03_0%,#75b83b_100%)]' : 'bg-white',
       ].join(' ')}
     />
   )

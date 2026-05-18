@@ -77,11 +77,10 @@ function SynthesisCard({
       <div className="absolute left-[151px] top-[602px]">
         <OnboardingButton
           disabled={isLoading}
-          label={isAwaitingPathways ? 'Continue to pathways' : "That’s it"}
+          label={isAwaitingPathways ? 'Continue' : "That's it"}
           onClick={() => {
             void (isAwaitingPathways ? onContinueToPathways() : onAccept())
           }}
-          tone={isLoading ? 'outline' : 'filled'}
         />
       </div>
       {isAwaitingPathways ? null : (
@@ -90,7 +89,6 @@ function SynthesisCard({
             disabled={isLoading}
             label="Not quite"
             onClick={onOpenRefinement}
-            tone={isLoading ? 'outline' : 'filled'}
           />
         </div>
       )}
@@ -140,7 +138,7 @@ export function SynthesisReviewScreen({
         <section
           aria-busy={isLoading}
           aria-label="Refinement response card"
-          className="absolute left-[384px] top-[515px] h-[338px] w-[683px]"
+          className="absolute left-[384px] top-[508px] h-[338px] w-[683px]"
         >
           <OnboardingCard className="inset-0" />
           <img
@@ -172,7 +170,6 @@ export function SynthesisReviewScreen({
               onClick={() => {
                 void handleSubmitRefinement()
               }}
-              tone={canSubmitRefinement ? 'filled' : 'outline'}
             />
           </div>
         </section>

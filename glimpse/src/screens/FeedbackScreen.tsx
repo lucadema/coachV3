@@ -3,6 +3,7 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
+import { ChevronIcon } from '../components/onboarding/UiIcons'
 import {
   type FeedbackState,
   type ValuableMomentOption,
@@ -30,8 +31,8 @@ function SelectionDot({ selected }: { selected: boolean }) {
     <span
       aria-hidden="true"
       className={[
-        'inline-block size-[14px] rounded-full border border-[#75b83b]',
-        selected ? 'bg-[linear-gradient(180deg,#dbec03_0%,#75b83b_100%)]' : 'bg-transparent',
+        'inline-block size-[18px] shrink-0 rounded-full border-[1.5px] border-[#75b83b] bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.65)]',
+        selected ? 'bg-[linear-gradient(180deg,#dbec03_0%,#75b83b_100%)]' : 'bg-white',
       ].join(' ')}
     />
   )
@@ -113,8 +114,8 @@ function ValuableMomentsDropdown({
   return (
     <div
       className={[
-        'absolute left-[66px] top-[459px] w-[512px] overflow-hidden rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
-        isOpen ? 'h-[124px]' : 'h-[42px]',
+        'absolute left-[64px] top-[452px] w-[512px] overflow-hidden rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
+        isOpen ? 'h-[154px]' : 'h-[42px]',
       ].join(' ')}
     >
       <button
@@ -125,13 +126,13 @@ function ValuableMomentsDropdown({
         className="relative h-[42px] w-full text-center text-[14px] font-normal leading-none text-[#294744]"
       >
         CHOOSE ALL OPTIONS THAT APPLY
-        <span className="absolute right-[8px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[14px] text-[#75b83b]">
-          {isOpen ? '^' : 'v'}
+        <span className="absolute right-[8px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]">
+          <ChevronIcon direction={isOpen ? 'up' : 'down'} />
         </span>
       </button>
 
       {isOpen ? (
-        <div className="absolute left-[14px] top-[52px] flex max-h-[62px] w-[484px] flex-col gap-[7px] overflow-y-auto pr-[8px]">
+        <div className="absolute left-[14px] top-[52px] flex max-h-[92px] w-[484px] flex-col gap-[8px] overflow-y-auto pr-[8px]">
           {valuableMomentOptions.map((option) => {
             const isSelected = feedback.valuableMoments.includes(option)
 
@@ -170,14 +171,14 @@ export function FeedbackScreen({
 
       <section
         aria-label="Aether Glimpse feedback survey"
-        className="absolute left-[384px] top-[170px] h-[683px] w-[683px]"
+        className="absolute left-[405px] top-[150px] h-[718px] w-[640px]"
       >
         <OnboardingCard className="inset-0" />
-        <h1 className="absolute left-[42px] top-[38px] m-0 w-[600px] text-center text-[29px] font-light leading-none tracking-[-1.16px] text-[#294744]">
+        <h1 className="absolute left-[20px] top-[38px] m-0 w-[600px] text-center text-[29px] font-light leading-none tracking-[-1.16px] text-[#294744]">
           Before you go, please tell us what you thought of the Aether Glimpse experience.
         </h1>
 
-        <div className="absolute left-[42px] top-[163px] w-[600px]">
+        <div className="absolute left-[20px] top-[163px] w-[600px]">
           <YesNoQuestion
             name="helpedThinkDifferently"
             noLabel="No, Aether did not help me think about my challenge in a new way"
@@ -188,7 +189,7 @@ export function FeedbackScreen({
           />
         </div>
 
-        <div className="absolute left-[42px] top-[290px] w-[600px]">
+        <div className="absolute left-[20px] top-[290px] w-[600px]">
           <YesNoQuestion
             name="organisationalBenefit"
             noLabel="No, I cannot see organisational benefit"
@@ -199,7 +200,7 @@ export function FeedbackScreen({
           />
         </div>
 
-        <p className="absolute left-[42px] top-[421px] m-0 w-[600px] text-center text-[18px] font-light leading-none tracking-[-0.72px] text-[#294744]">
+        <p className="absolute left-[20px] top-[414px] m-0 w-[600px] text-center text-[18px] font-light leading-none tracking-[-0.72px] text-[#294744]">
           What was the most valuable moment in this session for you?
         </p>
 
@@ -215,19 +216,18 @@ export function FeedbackScreen({
         {error ? (
           <p
             role="alert"
-            className="absolute left-[92px] top-[641px] m-0 w-[500px] text-center text-[13px] font-light leading-[1.2] text-[#294744]"
+            className="absolute left-[70px] top-[662px] m-0 w-[500px] text-center text-[13px] font-light leading-[1.2] text-[#294744]"
           >
             {error}
           </p>
         ) : null}
 
-        <div className="absolute left-[256px] top-[599px]">
+        <div className="absolute left-[235px] top-[636px]">
           <OnboardingButton
             label="Close"
             onClick={() => {
               onClose(feedback)
             }}
-            tone="filled"
           />
         </div>
       </section>

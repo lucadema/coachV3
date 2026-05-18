@@ -9,6 +9,7 @@ import {
   MobilePrimaryIcon,
   MobileWatermark,
 } from './MobilePrimitives'
+import { ProcessingIndicator } from '../../components/onboarding/ProcessingIndicator'
 
 type MobileSynthesisReviewScreenProps = {
   error?: string | null
@@ -65,26 +66,30 @@ export function MobileSynthesisReviewScreen({
             : 'Have we captured this accurately?'}
         </p>
       </MobileFullCard>
-      <MobileButton
-        disabled={isLoading}
-        label={isAwaitingPathways ? 'Continue to pathways' : "That’s it"}
-        onClick={() => {
-          void (isAwaitingPathways ? onContinueToPathways() : onAccept())
-        }}
-        top={698}
-      />
-      {isAwaitingPathways ? null : (
-        <MobileButton
-          disabled={isLoading}
-          label="Not quite"
-          onClick={onOpenRefinement}
-          top={762}
-        />
+      {isRefinementOpen ? null : (
+        <>
+          <MobileButton
+            disabled={isLoading}
+            label={isAwaitingPathways ? 'Continue' : "That's it"}
+            onClick={() => {
+              void (isAwaitingPathways ? onContinueToPathways() : onAccept())
+            }}
+            top={698}
+          />
+          {isAwaitingPathways ? null : (
+            <MobileButton
+              disabled={isLoading}
+              label="Not quite"
+              onClick={onOpenRefinement}
+              top={762}
+            />
+          )}
+        </>
       )}
 
       {isRefinementOpen ? (
         <>
-          <MobileHalfCard top={455}>
+          <MobileHalfCard top={451}>
             <MobilePrimaryIcon variant="user" />
             <textarea
               aria-label="Refinement feedback"
@@ -97,6 +102,11 @@ export function MobileSynthesisReviewScreen({
               placeholder=""
               className="absolute left-[21px] top-[95px] h-[200px] w-[310px] resize-none bg-transparent text-center text-[16px] font-medium italic leading-[21px] text-[#294744] outline-none placeholder:text-[#294744] disabled:cursor-wait"
             />
+            {isLoading ? (
+              <div className="absolute left-[27px] top-[298px] w-[300px]">
+                <ProcessingIndicator />
+              </div>
+            ) : null}
           </MobileHalfCard>
           <MobileButton
             disabled={!canSubmitRefinement}

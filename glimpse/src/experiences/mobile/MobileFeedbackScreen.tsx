@@ -12,6 +12,7 @@ import {
   type ValuableMomentOption,
   valuableMomentOptions,
 } from '../../types/feedback'
+import { ChevronIcon } from '../../components/onboarding/UiIcons'
 
 type MobileFeedbackScreenProps = {
   feedback: FeedbackState
@@ -45,10 +46,10 @@ export function MobileFeedbackScreen({
       <MobileWatermark />
       <MobileFullCard>
         <MobilePrimaryIcon variant="aether" />
-        <p className="absolute left-[22px] top-[99px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
+        <p className="absolute left-[22px] top-[92px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
           Thank you. We’ve now completed the session. You’ve clarified the core tension well, and have several resolution pathways you can action.
         </p>
-        <p className="absolute left-[22px] top-[186px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
+        <p className="absolute left-[22px] top-[176px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
           Before you go, please tell us what you thought of the Aether Glimpse experience.
         </p>
         <SurveyQuestion
@@ -60,7 +61,7 @@ export function MobileFeedbackScreen({
             setBoolean('helpedThinkDifferently', true)
           }}
           question="Did Aether help you think about your challenge in a new way?"
-          top={281}
+          top={266}
           value={feedback.helpedThinkDifferently}
           yesLabel="Yes, Aether helped me think about my challenge in a new way"
         />
@@ -73,17 +74,17 @@ export function MobileFeedbackScreen({
             setBoolean('organisationalBenefit', true)
           }}
           question="Can you see how access to this kind of thinking support could be benefical to a whole organisation"
-          top={393}
+          top={378}
           value={feedback.organisationalBenefit}
           yesLabel="Yes, I can see organisational benefit"
         />
-        <p className="absolute left-[22px] top-[489px] m-0 w-[310px] text-center text-[16px] font-light leading-none tracking-[-0.64px]">
+        <p className="absolute left-[22px] top-[474px] m-0 w-[310px] text-center text-[16px] font-light leading-none tracking-[-0.64px]">
           What was the most valuable moment in this session for you?
         </p>
         <div
           className={[
-            'absolute left-[7px] top-[543px] w-[340px] overflow-hidden rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
-            isDropdownOpen ? 'h-[148px]' : 'h-[42px]',
+            'absolute left-[22px] top-[528px] z-20 w-[310px] overflow-hidden rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
+            isDropdownOpen ? 'h-[218px]' : 'h-[42px]',
           ].join(' ')}
         >
           <button
@@ -96,12 +97,12 @@ export function MobileFeedbackScreen({
             className="relative h-[42px] w-full text-center text-[13px] font-normal leading-none"
           >
             CHOOSE ALL OPTIONS THAT APPLY
-            <span className="absolute right-[10px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[#75b83b]">
-              {isDropdownOpen ? '^' : 'v'}
+            <span className="absolute right-[10px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]">
+              <ChevronIcon direction={isDropdownOpen ? 'up' : 'down'} />
             </span>
           </button>
           {isDropdownOpen ? (
-            <div className="max-h-[96px] overflow-y-auto px-[14px] pb-[10px]">
+            <div className="max-h-[166px] overflow-y-auto px-[14px] pb-[10px]">
               {valuableMomentOptions.map((option) => {
                 const isSelected = feedback.valuableMoments.includes(option)
 
@@ -124,12 +125,14 @@ export function MobileFeedbackScreen({
           ) : null}
         </div>
       </MobileFullCard>
-      <MobileButton
-        label="Close"
-        onClick={() => {
-          onClose(feedback)
-        }}
-      />
+      {isDropdownOpen ? null : (
+        <MobileButton
+          label="Close"
+          onClick={() => {
+            onClose(feedback)
+          }}
+        />
+      )}
     </MobileFrame>
   )
 }
@@ -156,7 +159,7 @@ function SurveyQuestion({
       <legend className="m-0 w-full text-[16px] font-light leading-none tracking-[-0.64px]">
         {question}
       </legend>
-      <div className="mt-[13px] flex justify-center gap-[56px] text-[13px]">
+      <div className="mt-[13px] flex justify-center gap-[48px] text-[13px]">
         <button type="button" aria-pressed={value === true} aria-label={yesLabel} onClick={onYes} className="flex items-center gap-[8px]">
           <MobileSelectionDot selected={value === true} />
           YES

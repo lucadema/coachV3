@@ -59,11 +59,17 @@ async function advanceToInformationScreen() {
   })
 
   fireEvent.click(screen.getByRole('checkbox'))
-  fireEvent.click(screen.getByRole('button', { name: /next/i }))
+  fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 }
 
 async function flushPromises() {
   await act(async () => undefined)
+}
+
+function getLastContinueButton() {
+  const buttons = screen.getAllByRole('button', { name: /continue/i })
+
+  return buttons[buttons.length - 1]
 }
 
 describe('App experience mode', () => {
@@ -175,7 +181,7 @@ describe('App backend connection flow', () => {
     fireEvent.change(screen.getByLabelText(/describe your professional challenge/i), {
       target: { value: 'I need to reset expectations with my team' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    fireEvent.click(getLastContinueButton())
     await flushPromises()
 
     expect(screen.getByText('What feels most unresolved?')).toBeTruthy()
@@ -233,7 +239,7 @@ describe('App backend connection flow', () => {
     await flushPromises()
 
     expect(screen.getByText('Here is the synthesis.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /that’s it/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /that's it/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /not quite/i })).toBeTruthy()
   })
 
@@ -296,7 +302,7 @@ describe('App backend connection flow', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     await flushPromises()
-    fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
+    fireEvent.click(screen.getByRole('button', { name: /that's it/i }))
     await flushPromises()
 
     expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
@@ -375,16 +381,16 @@ describe('App backend connection flow', () => {
     fireEvent.change(screen.getByLabelText(/describe your professional challenge/i), {
       target: { value: 'I need to reset expectations with my team' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    fireEvent.click(getLastContinueButton())
     await flushPromises()
     fireEvent.change(screen.getByLabelText(/reply to aether/i), {
       target: { value: 'The tradeoff is unclear' },
     })
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     await flushPromises()
-    fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
+    fireEvent.click(screen.getByRole('button', { name: /that's it/i }))
     await flushPromises()
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    fireEvent.click(getLastContinueButton())
     await flushPromises()
 
     const postBodies = fetchMock.mock.calls
@@ -468,11 +474,11 @@ describe('App backend connection flow', () => {
     fireEvent.change(screen.getByLabelText(/refinement feedback/i), {
       target: { value: 'Add the budget constraint' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    fireEvent.click(getLastContinueButton())
     await flushPromises()
 
     expect(screen.getByText('Here is the refined synthesis.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /continue/i })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /continue/i }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: /not quite/i })).toBeNull()
   })
 
@@ -547,7 +553,7 @@ describe('App backend connection flow', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     await flushPromises()
-    fireEvent.click(screen.getByRole('button', { name: /that’s it/i }))
+    fireEvent.click(screen.getByRole('button', { name: /that's it/i }))
     await flushPromises()
 
     expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
@@ -572,6 +578,7 @@ describe('App backend connection flow', () => {
         name: /receiving structured pathways rather than a generic answer/i,
       }),
     )
+    fireEvent.click(screen.getByRole('button', { name: /choose all options that apply/i }))
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
 
     expect(screen.getByText(/We hope/i)).toBeTruthy()

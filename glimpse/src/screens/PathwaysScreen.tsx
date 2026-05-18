@@ -4,6 +4,7 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
+import { CloseIcon, DownloadIcon, ExpandIcon } from '../components/onboarding/UiIcons'
 import type { PathwayCard } from '../types/session'
 
 type PathwaysScreenProps = {
@@ -36,11 +37,9 @@ function ExpandButton({
       aria-label={`Expand ${title}`}
       disabled={disabled}
       onClick={onClick}
-      className="absolute right-[7px] top-[7px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[20px] font-light leading-none text-[#75b83b] disabled:cursor-wait"
+      className="absolute right-[7px] top-[7px] flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b] disabled:cursor-wait"
     >
-      <span aria-hidden="true" className="translate-y-[-1px]">
-        +
-      </span>
+      <ExpandIcon />
     </button>
   )
 }
@@ -51,9 +50,9 @@ function CloseButton({ onClick }: { onClick: () => void }) {
       type="button"
       aria-label="Close expanded pathway"
       onClick={onClick}
-      className="absolute right-[7px] top-[7px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[15px] font-light leading-none text-[#75b83b]"
+      className="absolute right-[7px] top-[7px] flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]"
     >
-      <span aria-hidden="true">X</span>
+      <CloseIcon />
     </button>
   )
 }
@@ -66,20 +65,7 @@ function DownloadButton({ onDownloadPdf }: { onDownloadPdf: () => void }) {
       onClick={onDownloadPdf}
       className="absolute left-[39px] top-[588px] flex size-[30px] cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-[#dbec03] bg-transparent text-[#75b83b]"
     >
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className="size-[18px]"
-      >
-        <path
-          d="M12 4v10m0 0 4-4m-4 4-4-4M5 17.5V20h14v-2.5"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-      </svg>
+      <DownloadIcon />
     </button>
   )
 }
@@ -136,7 +122,7 @@ function PathwaySummaryCard({
 
 function RawFallback({ text }: { text: string }) {
   return (
-    <div className="absolute left-[42px] top-[325px] h-[219px] w-[600px] overflow-auto rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)] px-[32px] py-[28px]">
+    <div className="absolute left-[20px] top-[325px] h-[219px] w-[600px] overflow-auto rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)] px-[32px] py-[28px]">
       <p className="m-0 whitespace-pre-wrap text-center text-[17px] font-light leading-[1.25] tracking-[-0.68px] text-[#294744]">
         {text || 'No pathway details are available yet.'}
       </p>
@@ -172,7 +158,7 @@ export function PathwaysScreen({
       <section
         aria-busy={isLoading}
         aria-label={expandedPathway ? 'Expanded pathway' : 'Pathway options'}
-        className="absolute left-[384px] top-[170px] h-[683px] w-[683px]"
+        className="absolute left-[405px] top-[170px] h-[683px] w-[640px]"
       >
         <OnboardingCard className="inset-0" />
         <img
@@ -183,7 +169,7 @@ export function PathwaysScreen({
         />
 
         {expandedPathway ? (
-          <div className="absolute left-[42px] top-[124px] h-[517px] w-[600px] rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]">
+          <div className="absolute left-[20px] top-[124px] h-[517px] w-[600px] rounded-[18px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]">
             <CloseButton
               onClick={() => {
                 setExpandedPathwayIndex(null)
@@ -198,12 +184,12 @@ export function PathwaysScreen({
           </div>
         ) : (
           <>
-            <p className="absolute left-[42px] top-[146px] m-0 w-[600px] text-center text-[20px] font-light leading-none tracking-[-0.8px] text-[#294744]">
+            <p className="absolute left-[20px] top-[146px] m-0 w-[600px] text-center text-[20px] font-light leading-none tracking-[-0.8px] text-[#294744]">
               {introText}
             </p>
 
             {hasPathwayCards ? (
-              <div className="absolute left-[42px] top-[325px] grid grid-cols-2 gap-x-[25px] gap-y-[25px]">
+              <div className="absolute left-[19px] top-[325px] grid grid-cols-2 gap-x-[25px] gap-y-[25px]">
                 {pathways.slice(0, 4).map((pathway, index) => (
                   <PathwaySummaryCard
                     index={index}
@@ -222,14 +208,13 @@ export function PathwaysScreen({
             <p className="absolute left-[75px] top-[592px] m-0 w-[222px] text-left text-[11px] font-light leading-none tracking-[-0.44px] text-[#294744]">
               {downloadNotice}
             </p>
-            <div className="absolute left-[414px] top-[598px]">
+            <div className="absolute left-[390px] top-[598px]">
               <OnboardingButton
                 disabled={isLoading}
                 label="Continue"
                 onClick={() => {
                   void handleContinue()
                 }}
-                tone={isLoading ? 'outline' : 'filled'}
               />
             </div>
           </>

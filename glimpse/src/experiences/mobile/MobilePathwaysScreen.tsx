@@ -7,6 +7,7 @@ import {
   MobilePrimaryIcon,
   MobileWatermark,
 } from './MobilePrimitives'
+import { CloseIcon, DownloadIcon, ExpandIcon } from '../../components/onboarding/UiIcons'
 import type { PathwayCard } from '../../types/session'
 
 type MobilePathwaysScreenProps = {
@@ -65,23 +66,23 @@ export function MobilePathwaysScreen({
       <MobileFullCard>
         <MobilePrimaryIcon variant="aether" />
         {expandedPathway ? (
-          <article className="absolute left-[7px] top-[100px] h-[628px] w-[340px] rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]">
+          <article className="absolute left-[22px] top-[100px] h-[628px] w-[310px] rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]">
             <button
               type="button"
               aria-label="Close expanded pathway"
               onClick={() => {
                 setExpandedPathwayIndex(null)
               }}
-              className="absolute right-[2px] top-[5px] flex size-[34px] items-center justify-center p-[6px] text-[#75b83b]"
+              className="absolute right-[2px] top-[5px] flex size-[34px] items-center justify-center p-[5px] text-[#75b83b]"
             >
-              <span className="flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.5)] text-[18px] leading-none">
-                x
+              <span className="flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)]">
+                <CloseIcon />
               </span>
             </button>
-            <h1 className="absolute left-[48px] top-[36px] m-0 w-[244px] text-center text-[14px] font-bold leading-none">
+            <h1 className="absolute left-[33px] top-[36px] m-0 w-[244px] text-center text-[14px] font-bold leading-none">
               {expandedPathway.title.toUpperCase()}
             </h1>
-            <div className="absolute left-[31px] top-[80px] max-h-[500px] w-[278px] overflow-auto">
+            <div className="absolute left-[22px] top-[80px] max-h-[500px] w-[266px] overflow-auto">
               <MobileExpandedPathwayBody body={expandedPathway.body} />
             </div>
           </article>
@@ -90,7 +91,7 @@ export function MobilePathwaysScreen({
             <p className="absolute left-[21px] top-[99px] m-0 w-[310px] text-center text-[16px] font-light leading-none tracking-[-0.64px]">
               {introText}
             </p>
-            <div className="absolute left-[7px] top-[218px] flex w-[340px] flex-col gap-[23px]">
+            <div className="absolute left-[22px] top-[218px] flex w-[310px] flex-col gap-[23px]">
               {(pathways.length > 0 ? pathways : [{ title: rawPathwaysText || 'No pathway details are available yet.', body: '' }])
                 .slice(0, 4)
                 .map((pathway, index) => (
@@ -106,9 +107,12 @@ export function MobilePathwaysScreen({
                         onClick={() => {
                           setExpandedPathwayIndex(index)
                         }}
-                        className="absolute inset-0 flex items-center justify-center rounded-[24px] px-[34px] text-center text-[14px] font-bold leading-none disabled:cursor-wait"
+                        className="absolute inset-0 flex items-center justify-center rounded-[24px] px-[38px] text-center text-[14px] font-bold leading-none disabled:cursor-wait"
                       >
                         {pathway.title.toUpperCase()}
+                        <span className="absolute right-[10px] top-[10px] flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]">
+                          <ExpandIcon />
+                        </span>
                       </button>
                     ) : (
                       <h2 className="absolute inset-x-[34px] top-1/2 m-0 -translate-y-1/2 text-center text-[14px] font-bold leading-none">
@@ -122,9 +126,9 @@ export function MobilePathwaysScreen({
               type="button"
               aria-label="Download session PDF"
               onClick={onDownloadPdf}
-              className="absolute left-[53px] top-[613px] flex size-[22px] items-center justify-center rounded-[8px] border-[1.5px] border-[#dbec03] text-[15px] text-[#75b83b]"
+              className="absolute left-[53px] top-[613px] flex size-[24px] items-center justify-center rounded-[8px] border-[1.5px] border-[#dbec03] text-[#75b83b]"
             >
-              ↓
+              <DownloadIcon className="size-[16px]" />
             </button>
             <p className="absolute left-[84px] top-[614px] m-0 w-[223px] text-left text-[11px] font-light leading-none tracking-[-0.44px]">
               {downloadNotice}
