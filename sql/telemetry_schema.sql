@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS coach_sessions (
 
     status TEXT NOT NULL DEFAULT 'active',
     current_stage TEXT NOT NULL DEFAULT 'problem_submitted',
+    session_label TEXT NULL,
     turns_count INTEGER NOT NULL DEFAULT 0 CHECK (turns_count >= 0),
 
     synthesis_generated BOOLEAN NOT NULL DEFAULT FALSE,
@@ -37,6 +38,9 @@ ON coach_sessions (started_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_coach_sessions_status
 ON coach_sessions (status);
+
+CREATE INDEX IF NOT EXISTS idx_coach_sessions_session_label
+ON coach_sessions (session_label);
 
 CREATE INDEX IF NOT EXISTS idx_coach_sessions_last_interaction_at
 ON coach_sessions (last_interaction_at DESC);

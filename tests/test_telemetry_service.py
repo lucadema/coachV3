@@ -36,6 +36,25 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(payload["turns_count"], 0)
         self.assertIn("timestamp", payload)
 
+    def test_console_sink_emits_session_label_when_present(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"TELEMETRY_ENABLED": "true", "TELEMETRY_SINK": "console"},
+            clear=True,
+        ):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                service.record_session_started(
+                    session_id="session-1",
+                    stage="classification",
+                    state="evaluating",
+                    turns_count=0,
+                    session_label="luca",
+                )
+
+        payload = json.loads(output.getvalue().strip().removeprefix("TELEMETRY "))
+        self.assertEqual(payload["session_label"], "luca")
+
     def test_disabled_telemetry_emits_nothing(self) -> None:
         with patch.dict(os.environ, {"TELEMETRY_ENABLED": "false"}, clear=True):
             output = io.StringIO()

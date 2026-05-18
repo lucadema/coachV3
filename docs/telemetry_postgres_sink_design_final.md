@@ -103,6 +103,7 @@ The session record should capture:
 - close time, where known
 - status
 - current stage
+- optional `session_label`
 - turn count
 - synthesis generated flag
 - pathways generated flag
@@ -112,6 +113,12 @@ The session record should capture:
 - feedback payload, if useful
 
 The duration does not need to be stored. It can be derived from `last_interaction_at - started_at`.
+
+`session_label` comes from the frontend URL query parameter `session_label` via
+generic launch context metadata. It is not frontend telemetry, authentication,
+or user identity. The backend sanitises it and stores it only on
+`coach_sessions.session_label`, never on `coach_llm_usage`. It can be used to
+filter out test, demo, or internal sessions.
 
 ## LLM telemetry model
 

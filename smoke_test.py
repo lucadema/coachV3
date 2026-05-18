@@ -88,6 +88,7 @@ def test_imports() -> None:
     check(StageReply.__name__ == "StageReply", "StageReply model is available")
     check("turn_count" in Session.model_fields, "Session has turn_count")
     check("stage_turn_count" in Session.model_fields, "Session has stage_turn_count")
+    check("session_label" in Session.model_fields, "Session supports optional session_label")
     check("run_coaching" in StageReply.model_fields, "StageReply has run_coaching")
     check("continue_turn" in StageReply.model_fields, "StageReply has continue_turn")
 
@@ -826,6 +827,9 @@ def test_api_flow() -> str:
                 "I'm struggling with a conflict with my manager about "
                 "priorities and I need help deciding how to address it."
             ),
+            "client_context": {
+                "session_label": "luca",
+            },
         },
     )
     check(response.status_code == 200, "/user_message returns 200")
@@ -849,6 +853,8 @@ def test_api_flow() -> str:
         user_payload["coach_message"] is not None and len(user_payload["coach_message"]) > 0,
         "User reply exposes the latest coach_message",
     )
+    stored_session = get_debug(session_id)
+    check(stored_session.session_label == "luca", "API stores sanitized session_label on session")
 
     response = client.get(f"/debug_trace/{session_id}")
     check(response.status_code == 200, "Post-turn /debug_trace returns 200")

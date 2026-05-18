@@ -66,6 +66,9 @@ class Session(BaseModel):
     cancelled: bool = False
     completed: bool = False
 
+    # Optional launch metadata only; not authentication and not user identity.
+    session_label: str | None = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -94,6 +97,7 @@ class UserMsg(BaseModel):
 
     session_id: str
     user_message: str
+    client_context: dict[str, Any] | None = None
 
 
 class UserMsgReply(BaseModel):

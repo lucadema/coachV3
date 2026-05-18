@@ -46,13 +46,38 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
                 "session_id": "session-1",
                 "stage": "classification",
                 "turns_count": 0,
+                "session_label": "luca",
             }
         )
 
         self.assertTrue(any("INSERT INTO coach_sessions" in sql for sql, _ in cursor.statements))
+        session_insert = next(
+            params for sql, params in cursor.statements if "INSERT INTO coach_sessions" in sql
+        )
+        self.assertIn("luca", session_insert or ())
         connection.commit.assert_called_once()
         connection.rollback.assert_not_called()
         connection.close.assert_called_once()
+
+    def test_session_update_sets_missing_session_label_only(self) -> None:
+        cursor = FakeCursor()
+        connection = FakeConnection(cursor)
+        sink = PostgresTelemetrySink("postgresql://example")
+        sink._connect = Mock(return_value=connection)  # type: ignore[method-assign]
+
+        sink.record(
+            {
+                "event": "session_updated",
+                "session_id": "session-1",
+                "stage": "coaching",
+                "turns_count": 1,
+                "session_label": "luca",
+            }
+        )
+
+        update_sql = next(sql for sql, _ in cursor.statements if "UPDATE coach_sessions" in sql)
+        self.assertIn("session_label = COALESCE(session_label, %s)", update_sql)
+        connection.commit.assert_called_once()
 
     def test_llm_call_write_inserts_usage_row(self) -> None:
         cursor = FakeCursor()

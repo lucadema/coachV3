@@ -1,4 +1,5 @@
 import type { BackendSessionView, BackendTurnResponse } from '../types/session'
+import { getLaunchContext } from '../utils/launchContext'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
 
@@ -116,12 +117,18 @@ export async function sendUserMessage(
   userMessage: string,
   options: CoachClientOptions = {},
 ): Promise<BackendTurnResponse> {
+  const launchContext = getLaunchContext()
+  const clientContext = launchContext.sessionLabel
+    ? { session_label: launchContext.sessionLabel }
+    : undefined
+
   return requestJson<BackendTurnResponse>('/user_message', {
     ...options,
     method: 'POST',
     payload: {
       session_id: sessionId,
       user_message: userMessage,
+      ...(clientContext ? { client_context: clientContext } : {}),
     },
   })
 }

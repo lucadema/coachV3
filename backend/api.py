@@ -16,6 +16,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.admin.telemetry_export_routes import router as telemetry_export_router
 from backend.controller import get_debug, handle_user_msg, init_session
 from backend.models import DebugReply, SessionView, UserMsg, UserMsgReply
 
@@ -45,6 +46,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+app.include_router(telemetry_export_router)
 
 
 # ============================================================================
@@ -95,6 +98,7 @@ def user_message(user_msg: UserMsg) -> UserMsgReply:
         session = handle_user_msg(
             session_id=user_msg.session_id,
             user_message=user_msg.user_message,
+            client_context=user_msg.client_context,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

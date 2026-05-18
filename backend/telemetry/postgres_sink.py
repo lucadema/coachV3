@@ -98,14 +98,20 @@ class PostgresTelemetrySink:
                 except Exception:
                     pass
 
-    def _ensure_session(self, cursor: Any, session_id: str, stage: str = DEFAULT_STAGE) -> None:
+    def _ensure_session(
+        self,
+        cursor: Any,
+        session_id: str,
+        stage: str = DEFAULT_STAGE,
+        session_label: str | None = None,
+    ) -> None:
         cursor.execute(
             """
-            INSERT INTO coach_sessions (app_session_id, current_stage)
-            VALUES (%s, %s)
+            INSERT INTO coach_sessions (app_session_id, current_stage, session_label)
+            VALUES (%s, %s, %s)
             ON CONFLICT (app_session_id) DO NOTHING
             """,
-            (session_id, stage),
+            (session_id, stage, session_label),
         )
 
     def _record_session_started(self, payload: dict[str, Any]) -> None:
@@ -116,6 +122,7 @@ class PostgresTelemetrySink:
 
         stage = _stage(payload)
         turns_count = _nonnegative_int(payload.get("turns_count"), default=0)
+        session_label = _safe_string(payload.get("session_label"))
 
         def writer(cursor: Any) -> None:
             cursor.execute(
@@ -127,17 +134,22 @@ class PostgresTelemetrySink:
                     status,
                     current_stage,
                     turns_count,
+                    session_label,
                     updated_at
                 )
-                VALUES (%s, NOW(), NOW(), 'active', %s, %s, NOW())
+                VALUES (%s, NOW(), NOW(), 'active', %s, %s, %s, NOW())
                 ON CONFLICT (app_session_id) DO UPDATE SET
                     last_interaction_at = NOW(),
                     status = 'active',
                     current_stage = EXCLUDED.current_stage,
                     turns_count = EXCLUDED.turns_count,
+                    session_label = COALESCE(
+                        coach_sessions.session_label,
+                        EXCLUDED.session_label
+                    ),
                     updated_at = NOW()
                 """,
-                (session_id, stage, turns_count),
+                (session_id, stage, turns_count, session_label),
             )
 
         self._write(writer)
@@ -152,6 +164,7 @@ class PostgresTelemetrySink:
         stage = _stage(payload)
         turns_count = _nonnegative_int(payload.get("turns_count"), default=0)
         status = _safe_string(payload.get("status"))
+        session_label = _safe_string(payload.get("session_label"))
 
         assignments: list[str] = [
             "last_interaction_at = NOW()",
@@ -164,6 +177,10 @@ class PostgresTelemetrySink:
         if status:
             assignments.append("status = %s")
             params.append(status)
+
+        if session_label:
+            assignments.append("session_label = COALESCE(session_label, %s)")
+            params.append(session_label)
 
         for column, key in (
             ("synthesis_generated", "synthesis_generated"),
@@ -178,7 +195,7 @@ class PostgresTelemetrySink:
         params.append(session_id)
 
         def writer(cursor: Any) -> None:
-            self._ensure_session(cursor, session_id, stage)
+            self._ensure_session(cursor, session_id, stage, session_label)
             cursor.execute(
                 f"""
                 UPDATE coach_sessions

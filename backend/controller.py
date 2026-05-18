@@ -19,6 +19,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from backend.client_context import extract_session_label
 from backend import engine
 from backend import telemetry
 from backend.enums import (
@@ -296,11 +297,18 @@ def init_session(session_id: str | None = None) -> Session:
     return session
 
 
-def handle_user_msg(session_id: str, user_message: str) -> Session:
+def handle_user_msg(
+    session_id: str,
+    user_message: str,
+    client_context: dict[str, Any] | None = None,
+) -> Session:
     """Apply one user turn, execute the V3.1 state loop, persist, and return."""
     session = _require_session(session_id)
     is_first_user_turn = session.turn_count == 0
     was_terminal_session = session.completed or session.cancelled
+    incoming_session_label = extract_session_label(client_context)
+    if incoming_session_label and session.session_label is None:
+        session.session_label = incoming_session_label
 
     session.evaluation_message = None
     session.coach_message = None
@@ -314,6 +322,7 @@ def handle_user_msg(session_id: str, user_message: str) -> Session:
             stage=session.stage,
             state=session.state,
             turns_count=session.turn_count,
+            session_label=session.session_label,
         )
 
     session.user_message = user_message
@@ -340,6 +349,7 @@ def handle_user_msg(session_id: str, user_message: str) -> Session:
         pathways_generated=None,
         pdf_downloaded=None,
         status=session_status,
+        session_label=session.session_label,
     )
     if session_status is not None and not was_terminal_session:
         telemetry.record_session_closed(

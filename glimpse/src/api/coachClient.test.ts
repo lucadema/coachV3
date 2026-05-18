@@ -77,6 +77,42 @@ describe('coachClient', () => {
     )
   })
 
+  it('includes optional launch context metadata on user messages', async () => {
+    vi.stubGlobal('window', {
+      location: {
+        search: '?session_label=Luca',
+      },
+    })
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        coach_message: 'Tell me more.',
+        session: {
+          session_id: 'session-1',
+          stage: 'coaching',
+          state: 'guiding',
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendUserMessage('session-1', 'A challenge I am facing', {
+      baseUrl: 'http://api.test',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/user_message',
+      expect.objectContaining({
+        body: JSON.stringify({
+          session_id: 'session-1',
+          user_message: 'A challenge I am facing',
+          client_context: {
+            session_label: 'luca',
+          },
+        }),
+      }),
+    )
+  })
+
   it('throws a CoachApiError when the backend cannot be reached', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error('Failed to fetch'))
     vi.stubGlobal('fetch', fetchMock)

@@ -148,17 +148,19 @@ def record_session_started(
     stage: str | None,
     state: str | None,
     turns_count: int | None,
+    session_label: str | None = None,
 ) -> None:
     try:
-        _emit(
-            {
-                "event": "session_started",
-                "session_id": session_id,
-                "stage": stage,
-                "state": state,
-                "turns_count": turns_count,
-            }
-        )
+        payload = {
+            "event": "session_started",
+            "session_id": session_id,
+            "stage": stage,
+            "state": state,
+            "turns_count": turns_count,
+        }
+        if session_label:
+            payload["session_label"] = session_label
+        _emit(payload)
     except Exception:
         return None
 
@@ -173,21 +175,23 @@ def record_session_updated(
     pathways_generated: bool | None = None,
     pdf_downloaded: bool | None = None,
     status: str | None = None,
+    session_label: str | None = None,
 ) -> None:
     try:
-        _emit(
-            {
-                "event": "session_updated",
-                "session_id": session_id,
-                "stage": stage,
-                "state": state,
-                "turns_count": turns_count,
-                "synthesis_generated": synthesis_generated,
-                "pathways_generated": pathways_generated,
-                "pdf_downloaded": pdf_downloaded,
-                "status": status,
-            }
-        )
+        payload = {
+            "event": "session_updated",
+            "session_id": session_id,
+            "stage": stage,
+            "state": state,
+            "turns_count": turns_count,
+            "synthesis_generated": synthesis_generated,
+            "pathways_generated": pathways_generated,
+            "pdf_downloaded": pdf_downloaded,
+            "status": status,
+        }
+        if session_label:
+            payload["session_label"] = session_label
+        _emit(payload)
     except Exception:
         return None
 

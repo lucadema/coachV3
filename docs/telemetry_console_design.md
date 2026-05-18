@@ -124,6 +124,7 @@ def record_session_started(
     stage: str | None,
     state: str | None,
     turns_count: int | None,
+    session_label: str | None = None,
 ) -> None: ...
 
 
@@ -137,6 +138,7 @@ def record_session_updated(
     pathways_generated: bool | None = None,
     pdf_downloaded: bool | None = None,
     status: str | None = None,
+    session_label: str | None = None,
 ) -> None: ...
 
 
@@ -159,6 +161,19 @@ def record_feedback_submitted(
     payload: dict | None = None,
 ) -> None: ...
 ```
+
+### Optional session label
+
+Session telemetry may include an optional `session_label`. It comes from the
+React launch URL query parameter `session_label`, is passed as generic client
+launch context, and is sanitised again by the backend before telemetry receives
+it.
+
+This is not authentication and not user identity. It is only launch/session
+metadata for filtering test, demo, or internal sessions. Console telemetry may
+emit `session_label` when present. It must not be added to LLM telemetry and
+must not include raw prompts, messages, history, synthesis text, or pathway
+text.
 
 For this first step, feedback and PDF telemetry may only be wired if the corresponding endpoints are already obvious in the backend. Do not refactor UI or API flow just to add them.
 
@@ -303,4 +318,3 @@ That sink can map:
 
 - session telemetry to `coach_sessions` upserts
 - LLM telemetry to `coach_llm_usage` inserts
-
