@@ -89,7 +89,7 @@ export function MobileSynthesisReviewScreen({
 
       {isRefinementOpen ? (
         <>
-          <MobileHalfCard top={451}>
+          <MobileHalfCard opaque top={451}>
             <MobilePrimaryIcon variant="user" />
             <textarea
               aria-label="Refinement feedback"

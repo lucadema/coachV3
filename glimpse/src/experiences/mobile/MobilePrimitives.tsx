@@ -105,14 +105,19 @@ export function MobileFullCard({ children }: { children: ReactNode }) {
 
 export function MobileHalfCard({
   children,
+  opaque = false,
   top,
 }: {
   children: ReactNode
+  opaque?: boolean
   top: number
 }) {
   return (
     <section
-      className="absolute left-1/2 h-[371px] w-[calc(100%_-_36px)] max-w-[354px] -translate-x-1/2 rounded-[30px] border-4 border-[rgba(41,71,68,0.07)] bg-[rgba(255,255,255,0.5)]"
+      className={[
+        'absolute left-1/2 h-[371px] w-[calc(100%_-_36px)] max-w-[354px] -translate-x-1/2 rounded-[30px] border-4 border-[rgba(41,71,68,0.07)]',
+        opaque ? 'bg-white' : 'bg-[rgba(255,255,255,0.5)]',
+      ].join(' ')}
       style={{ top }}
     >
       {children}
