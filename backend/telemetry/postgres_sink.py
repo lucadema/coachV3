@@ -229,10 +229,12 @@ class PostgresTelemetrySink:
                     last_interaction_at = NOW(),
                     current_stage = %s,
                     turns_count = %s,
+                    synthesis_generated = synthesis_generated OR (%s = 'completed'),
+                    pathways_generated = pathways_generated OR (%s = 'completed'),
                     updated_at = NOW()
                 WHERE app_session_id = %s
                 """,
-                (status, stage, turns_count, session_id),
+                (status, stage, turns_count, status, status, session_id),
             )
 
         self._write(writer)

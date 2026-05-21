@@ -1,4 +1,5 @@
 import type { BackendSessionView, BackendTurnResponse } from '../types/session'
+import type { FeedbackState } from '../types/feedback'
 import { getLaunchContext } from '../utils/launchContext'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
@@ -130,6 +131,42 @@ export async function sendUserMessage(
       user_message: userMessage,
       ...(clientContext ? { client_context: clientContext } : {}),
     },
+  })
+}
+
+export async function recordSessionEvent(
+  sessionId: string,
+  event:
+    | { event: 'pdf_downloaded' }
+    | {
+        event: 'feedback_submitted'
+        feedback: FeedbackState
+      },
+  options: CoachClientOptions = {},
+): Promise<void> {
+  const payload =
+    event.event === 'feedback_submitted'
+      ? {
+          session_id: sessionId,
+          event: event.event,
+          answer_1: event.feedback.helpedThinkDifferently,
+          answer_2: event.feedback.organisationalBenefit,
+          dropdown_values: event.feedback.valuableMoments,
+          payload: {
+            answer_1: event.feedback.helpedThinkDifferently,
+            answer_2: event.feedback.organisationalBenefit,
+            dropdown_values: event.feedback.valuableMoments,
+          },
+        }
+      : {
+          session_id: sessionId,
+          event: event.event,
+        }
+
+  await requestJson('/telemetry/session_event', {
+    ...options,
+    method: 'POST',
+    payload,
   })
 }
 

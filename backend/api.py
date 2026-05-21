@@ -16,9 +16,16 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend import telemetry
 from backend.admin.telemetry_export_routes import router as telemetry_export_router
 from backend.controller import get_debug, handle_user_msg, init_session
-from backend.models import DebugReply, SessionView, UserMsg, UserMsgReply
+from backend.models import (
+    ClientTelemetryEvent,
+    DebugReply,
+    SessionView,
+    UserMsg,
+    UserMsgReply,
+)
 
 
 LOCAL_CORS_ORIGINS = [
@@ -107,6 +114,48 @@ def user_message(user_msg: UserMsg) -> UserMsgReply:
         session=_build_session_view(session),
         coach_message=session.coach_message,
     )
+
+
+@app.post("/telemetry/session_event")
+def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
+    """
+    Record a telemetry-only client event for an existing session.
+
+    This endpoint is deliberately outside the coaching control path. It does
+    not mutate session state and telemetry failures are swallowed by the
+    telemetry service.
+    """
+    try:
+        session = get_debug(event.session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    session_status = None
+    if session.completed:
+        session_status = "completed"
+    elif session.cancelled:
+        session_status = "cancelled"
+
+    if event.event == "pdf_downloaded":
+        telemetry.record_session_updated(
+            session_id=session.session_id,
+            stage=session.stage,
+            state=session.state,
+            turns_count=session.turn_count,
+            pdf_downloaded=True,
+            status=session_status,
+            session_label=session.session_label,
+        )
+        return {"status": "ok"}
+
+    telemetry.record_feedback_submitted(
+        session_id=session.session_id,
+        answer_1=event.answer_1,
+        answer_2=event.answer_2,
+        dropdown_values=event.dropdown_values,
+        payload=event.payload,
+    )
+    return {"status": "ok"}
 
 
 @app.get("/debug_trace/{session_id}", response_model=DebugReply)

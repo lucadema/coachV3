@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CoachApiError, initialiseSession, sendUserMessage } from './coachClient'
+import {
+  CoachApiError,
+  initialiseSession,
+  recordSessionEvent,
+  sendUserMessage,
+} from './coachClient'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -138,5 +143,60 @@ describe('coachClient', () => {
       message: 'Session not found',
       status: 404,
     } satisfies Partial<CoachApiError>)
+  })
+
+  it('records PDF download telemetry events', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ status: 'ok' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await recordSessionEvent('session-1', { event: 'pdf_downloaded' }, { baseUrl: 'http://api.test' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/telemetry/session_event',
+      expect.objectContaining({
+        body: JSON.stringify({
+          session_id: 'session-1',
+          event: 'pdf_downloaded',
+        }),
+        method: 'POST',
+      }),
+    )
+  })
+
+  it('records feedback telemetry events', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ status: 'ok' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await recordSessionEvent(
+      'session-1',
+      {
+        event: 'feedback_submitted',
+        feedback: {
+          helpedThinkDifferently: true,
+          organisationalBenefit: false,
+          valuableMoments: ['Receiving structured pathways rather than a generic answer'],
+        },
+      },
+      { baseUrl: 'http://api.test' },
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/telemetry/session_event',
+      expect.objectContaining({
+        body: JSON.stringify({
+          session_id: 'session-1',
+          event: 'feedback_submitted',
+          answer_1: true,
+          answer_2: false,
+          dropdown_values: ['Receiving structured pathways rather than a generic answer'],
+          payload: {
+            answer_1: true,
+            answer_2: false,
+            dropdown_values: ['Receiving structured pathways rather than a generic answer'],
+          },
+        }),
+        method: 'POST',
+      }),
+    )
   })
 })

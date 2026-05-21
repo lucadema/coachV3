@@ -263,6 +263,23 @@ def api_get_debug_trace() -> dict[str, Any] | None:
     return _request_json("GET", f"/debug_trace/{st.session_state.session_id}")
 
 
+def api_record_session_event(payload: dict[str, Any]) -> None:
+    """Record a telemetry-only event without changing visible frontend state."""
+    if not st.session_state.session_id:
+        return
+
+    request_json(
+        API_URL,
+        "POST",
+        "/telemetry/session_event",
+        payload={
+            "session_id": st.session_state.session_id,
+            **payload,
+        },
+        timeout_seconds=3,
+    )
+
+
 # ------------------------------------------------
 # Debug helpers
 # ------------------------------------------------
@@ -1133,6 +1150,30 @@ def render_feedback() -> None:
 
     with col2:
         if st.button("Close", use_container_width=True):
+            feedback_helpful = st.session_state.get("feedback_helpful")
+            feedback_org = st.session_state.get("feedback_org")
+            feedback_value = st.session_state.get("feedback_value", [])
+            api_record_session_event(
+                {
+                    "event": "feedback_submitted",
+                    "answer_1": (
+                        None
+                        if feedback_helpful is None
+                        else feedback_helpful == "Yes"
+                    ),
+                    "answer_2": (
+                        None
+                        if feedback_org is None
+                        else feedback_org == "Yes"
+                    ),
+                    "dropdown_values": feedback_value,
+                    "payload": {
+                        "answer_1": feedback_helpful,
+                        "answer_2": feedback_org,
+                        "dropdown_values": feedback_value,
+                    },
+                }
+            )
             st.session_state.ui_screen = "closed"
             st.rerun()
 

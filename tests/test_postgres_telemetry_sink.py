@@ -102,6 +102,67 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
         connection.rollback.assert_not_called()
         connection.close.assert_called_once()
 
+    def test_completed_session_close_sets_generated_output_flags(self) -> None:
+        cursor = FakeCursor()
+        connection = FakeConnection(cursor)
+        sink = PostgresTelemetrySink("postgresql://example")
+        sink._connect = Mock(return_value=connection)  # type: ignore[method-assign]
+
+        sink.record(
+            {
+                "event": "session_closed",
+                "session_id": "session-1",
+                "stage": "closure",
+                "turns_count": 8,
+                "status": "completed",
+            }
+        )
+
+        update_sql, update_params = next(
+            (sql, params)
+            for sql, params in cursor.statements
+            if "closed_at = NOW()" in sql
+        )
+        self.assertIn("synthesis_generated = synthesis_generated OR", update_sql)
+        self.assertIn("pathways_generated = pathways_generated OR", update_sql)
+        self.assertEqual(
+            update_params,
+            ("completed", "closure", 8, "completed", "completed", "session-1"),
+        )
+        connection.commit.assert_called_once()
+
+    def test_feedback_submitted_updates_feedback_columns(self) -> None:
+        cursor = FakeCursor()
+        connection = FakeConnection(cursor)
+        sink = PostgresTelemetrySink("postgresql://example")
+        sink._connect = Mock(return_value=connection)  # type: ignore[method-assign]
+
+        sink.record(
+            {
+                "event": "feedback_submitted",
+                "session_id": "session-1",
+                "answer_1": True,
+                "answer_2": False,
+                "dropdown_values": ["Structured pathways"],
+                "payload_keys": ["answer_1", "answer_2", "dropdown_values"],
+            }
+        )
+
+        update_sql, update_params = next(
+            (sql, params)
+            for sql, params in cursor.statements
+            if "feedback_submitted_at = NOW()" in sql
+        )
+        self.assertIn("feedback_answer_1 = %s", update_sql)
+        self.assertEqual(update_params[0], True)
+        self.assertEqual(update_params[1], False)
+        self.assertEqual(update_params[2], ["Structured pathways"])
+        self.assertEqual(
+            update_params[3],
+            '{"payload_keys": ["answer_1", "answer_2", "dropdown_values"]}',
+        )
+        connection.commit.assert_called_once()
+
     def test_database_errors_are_swallowed_and_rolled_back(self) -> None:
         cursor = FakeCursor(fail=True)
         connection = FakeConnection(cursor)

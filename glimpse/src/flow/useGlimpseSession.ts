@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { CoachApiError, initialiseSession, sendUserMessage } from '../api/coachClient'
+import {
+  CoachApiError,
+  initialiseSession,
+  recordSessionEvent,
+  sendUserMessage,
+} from '../api/coachClient'
 import { isRefinedSynthesisWaitingForPathways, parsePathwayCards } from './sessionFlow'
 import {
   buildBackendTurnStateUpdate,
@@ -402,6 +407,12 @@ export function useGlimpseSession() {
   function handleFeedbackClose(nextFeedback: FeedbackState) {
     setFeedback(nextFeedback)
     setStep('closed')
+    if (sessionId) {
+      void recordSessionEvent(sessionId, {
+        event: 'feedback_submitted',
+        feedback: nextFeedback,
+      }).catch(() => undefined)
+    }
   }
 
   function handleStartNewSession() {
@@ -426,6 +437,9 @@ export function useGlimpseSession() {
 
     try {
       await downloadSessionPdf(buildSessionPdfData(pdfSource))
+      if (sessionId) {
+        void recordSessionEvent(sessionId, { event: 'pdf_downloaded' }).catch(() => undefined)
+      }
     } catch (error) {
       setFrontendError(
         getErrorMessage(

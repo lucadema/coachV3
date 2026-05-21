@@ -16,7 +16,7 @@ Contents:
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -111,6 +111,17 @@ class UserMsgReply(BaseModel):
 
     session: SessionView
     coach_message: str | None = None
+
+
+class ClientTelemetryEvent(BaseModel):
+    """Telemetry-only event payload sent by a frontend client."""
+
+    session_id: str
+    event: Literal["pdf_downloaded", "feedback_submitted"]
+    answer_1: bool | None = None
+    answer_2: bool | None = None
+    dropdown_values: list[str] | None = None
+    payload: dict[str, Any] | None = None
 
 
 class DebugReply(BaseModel):

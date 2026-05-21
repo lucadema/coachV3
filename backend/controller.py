@@ -71,6 +71,26 @@ def _session_status(session: Session) -> str | None:
     return None
 
 
+def _telemetry_generation_flags(session: Session) -> tuple[bool | None, bool | None]:
+    """Infer generated-output telemetry flags from stage progress only."""
+    synthesis_generated = None
+    pathways_generated = None
+
+    if session.stage in {Stage.PATHWAYS.value, Stage.CLOSURE.value} or (
+        session.stage == Stage.SYNTHESIS.value
+        and session.state != SynthesisState.PREPARING.value
+    ):
+        synthesis_generated = True
+
+    if session.stage == Stage.CLOSURE.value or (
+        session.stage == Stage.PATHWAYS.value
+        and session.state != PathwaysState.PREPARING.value
+    ):
+        pathways_generated = True
+
+    return synthesis_generated, pathways_generated
+
+
 def _require_session(session_id: str) -> Session:
     """Load an existing session or raise a clear error."""
     session = state_store.get_session(session_id)
@@ -340,13 +360,14 @@ def handle_user_msg(
     # Telemetry is intentionally best-effort and content-free. Later persistence
     # can replace the sink without changing controller orchestration.
     session_status = _session_status(session)
+    synthesis_generated, pathways_generated = _telemetry_generation_flags(session)
     telemetry.record_session_updated(
         session_id=session.session_id,
         stage=session.stage,
         state=session.state,
         turns_count=session.turn_count,
-        synthesis_generated=None,
-        pathways_generated=None,
+        synthesis_generated=synthesis_generated,
+        pathways_generated=pathways_generated,
         pdf_downloaded=None,
         status=session_status,
         session_label=session.session_label,
