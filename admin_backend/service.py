@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import quote
 
 from admin_backend.config import AdminSettings, get_settings
-from admin_backend.errors import AdminConfigurationError, AdminNotFoundError
+from admin_backend.errors import AdminConfigurationError, AdminConflictError, AdminNotFoundError
 from admin_backend.models import (
     AccessLinkView,
     EnterpriseCreate,
@@ -78,17 +78,59 @@ class AdminService:
         return EnterpriseView.model_validate(row)
 
     def update_enterprise(self, enterprise_id: str, payload: EnterpriseUpdate) -> EnterpriseView:
-        self.get_enterprise(enterprise_id)
+        current_enterprise = self.get_enterprise(enterprise_id)
         updates = payload.model_dump(exclude_unset=True)
         if "status" in updates and updates["status"] is not None:
             updates["status"] = updates["status"].value
         if "name" in updates and updates["name"] is not None:
             updates["name"] = updates["name"].strip()
 
+        next_status = updates.get("status")
+        if next_status == PilotStatus.CLOSED.value:
+            pilots = self.list_pilots_for_enterprise(enterprise_id)
+            open_pilots = [
+                pilot.name for pilot in pilots
+                if pilot.status != PilotStatus.CLOSED
+            ]
+            if open_pilots:
+                raise AdminConflictError(
+                    "Enterprise can only be closed when all pilots are closed."
+                )
+
         row = self.repository.update_enterprise(enterprise_id, updates)
         if row is None:
             raise AdminNotFoundError(f"Enterprise not found: {enterprise_id}")
-        return EnterpriseView.model_validate(row)
+        updated_enterprise = EnterpriseView.model_validate(row)
+
+        if (
+            current_enterprise.status.value == "active"
+            and updated_enterprise.status.value == "paused"
+        ):
+            self.repository.update_pilots_status_for_enterprise(
+                enterprise_id,
+                from_status="active",
+                to_status="paused",
+            )
+        elif (
+            current_enterprise.status.value == "paused"
+            and updated_enterprise.status.value == "active"
+        ):
+            self.repository.update_pilots_status_for_enterprise(
+                enterprise_id,
+                from_status="paused",
+                to_status="active",
+            )
+
+        return updated_enterprise
+
+    def delete_enterprise(self, enterprise_id: str) -> None:
+        enterprise = self.get_enterprise(enterprise_id)
+        if enterprise.status.value != "closed":
+            raise AdminConflictError("Enterprise can only be deleted when closed.")
+
+        deleted = self.repository.delete_enterprise(enterprise_id)
+        if not deleted:
+            raise AdminNotFoundError(f"Enterprise not found: {enterprise_id}")
 
     def list_pilots_for_enterprise(self, enterprise_id: str) -> list[PilotView]:
         self.get_enterprise(enterprise_id)
@@ -130,6 +172,15 @@ class AdminService:
         if row is None:
             raise AdminNotFoundError(f"Pilot not found: {pilot_id}")
         return PilotView.model_validate(row)
+
+    def delete_pilot(self, pilot_id: str) -> None:
+        pilot = self.get_pilot(pilot_id)
+        if pilot.status.value != "closed":
+            raise AdminConflictError("Pilot can only be deleted when closed.")
+
+        deleted = self.repository.delete_pilot(pilot_id)
+        if not deleted:
+            raise AdminNotFoundError(f"Pilot not found: {pilot_id}")
 
     def list_links_for_pilot(self, pilot_id: str) -> list[AccessLinkView]:
         self.get_pilot(pilot_id)
@@ -252,4 +303,3 @@ class AdminService:
             )
 
         return template.replace("{token}", quote(token, safe=""))
-

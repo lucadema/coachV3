@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from admin_backend.errors import AdminConfigurationError, AdminNotFoundError
+from admin_backend.errors import AdminConfigurationError, AdminConflictError, AdminNotFoundError
 from admin_backend.models import (
     AccessLinkView,
+    DeleteResponse,
     EnterpriseCreate,
     EnterpriseUpdate,
     EnterpriseView,
@@ -35,6 +36,9 @@ def _raise_http_error(exc: Exception) -> None:
 
     if isinstance(exc, AdminConfigurationError):
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    if isinstance(exc, AdminConflictError):
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     raise HTTPException(status_code=500, detail="Admin operation failed.") from exc
 
@@ -102,6 +106,22 @@ def update_enterprise(
         _raise_http_error(exc)
 
 
+@router.delete(
+    "/admin/enterprises/{enterprise_id}",
+    response_model=DeleteResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
+def delete_enterprise(
+    enterprise_id: str,
+    service: AdminService = Depends(get_service),
+) -> DeleteResponse:
+    try:
+        service.delete_enterprise(enterprise_id)
+        return DeleteResponse(id=enterprise_id)
+    except Exception as exc:
+        _raise_http_error(exc)
+
+
 @router.get(
     "/admin/enterprises/{enterprise_id}/pilots",
     response_model=list[PilotView],
@@ -153,6 +173,22 @@ def update_pilot(
 ) -> PilotView:
     try:
         return service.update_pilot(pilot_id, payload)
+    except Exception as exc:
+        _raise_http_error(exc)
+
+
+@router.delete(
+    "/admin/pilots/{pilot_id}",
+    response_model=DeleteResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
+def delete_pilot(
+    pilot_id: str,
+    service: AdminService = Depends(get_service),
+) -> DeleteResponse:
+    try:
+        service.delete_pilot(pilot_id)
+        return DeleteResponse(id=pilot_id)
     except Exception as exc:
         _raise_http_error(exc)
 
@@ -250,4 +286,3 @@ def validate_access_token(
         return service.validate_token(payload.token, payload.token_type)
     except Exception as exc:
         _raise_http_error(exc)
-

@@ -113,6 +113,53 @@ class AdminPostgresRepository:
             params,
         )
 
+    def update_pilots_status_for_enterprise(
+        self,
+        enterprise_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+    ) -> int:
+        row = self._fetch_one(
+            """
+            WITH updated AS (
+                UPDATE admin_pilots
+                SET status = %s,
+                    updated_at = NOW()
+                WHERE enterprise_id = %s
+                  AND status = %s
+                RETURNING id
+            )
+            SELECT COUNT(*)::integer AS updated_count
+            FROM updated
+            """,
+            (to_status, enterprise_id, from_status),
+        )
+        return int((row or {}).get("updated_count") or 0)
+
+    def delete_enterprise(self, enterprise_id: str) -> bool:
+        """Hard-delete an enterprise and its pilots for admin cleanup."""
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM admin_pilots
+                    WHERE enterprise_id = %s
+                    """,
+                    (enterprise_id,),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM admin_enterprises
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (enterprise_id,),
+                )
+                row = cursor.fetchone()
+                connection.commit()
+                return row is not None
+
     def list_pilots_for_enterprise(self, enterprise_id: str) -> list[dict[str, Any]]:
         return self._fetch_all(
             f"""
@@ -172,6 +219,17 @@ class AdminPostgresRepository:
             """,
             params,
         )
+
+    def delete_pilot(self, pilot_id: str) -> bool:
+        row = self._fetch_one(
+            """
+            DELETE FROM admin_pilots
+            WHERE id = %s
+            RETURNING id
+            """,
+            (pilot_id,),
+        )
+        return row is not None
 
     def find_active_token(self, pilot_id: str, token_type: str) -> dict[str, Any] | None:
         return self._fetch_one(
@@ -293,4 +351,3 @@ class AdminPostgresRepository:
             "last_activity_at": None,
             "feedback_records_count": 0,
         }
-

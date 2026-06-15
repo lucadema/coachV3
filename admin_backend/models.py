@@ -115,3 +115,7 @@ class TokenValidationResponse(BaseModel):
     token_type: TokenType | None = None
     reason: str | None = None
 
+
+class DeleteResponse(BaseModel):
+    status: str = "deleted"
+    id: str

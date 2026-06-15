@@ -23,6 +23,12 @@ It must stay separate from the existing Glimpse coaching backend in `backend/`.
 - Access tokens are external secrets. Store and log only safe prefixes outside
   authorised admin responses.
 - `pilot_id` is the stable context stored on telemetry. Tokens are not tenant IDs.
+- Enterprise and pilot delete endpoints are hard-delete cleanup tools for
+  internal testing or accidental data entry. They must remain authenticated.
+  They do not delete existing telemetry rows.
+- Status relationship rules are enforced in `service.py`, not React:
+  closed-only deletes, enterprise active/paused cascades, and enterprise close
+  only after all pilots are closed.
 
 ## Files
 
@@ -44,4 +50,3 @@ python admin_smoke_test.py
 
 If token validation or telemetry association changes, also run the existing
 Glimpse smoke and telemetry tests.
-

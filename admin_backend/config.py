@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,6 +45,27 @@ def _split_origins(value: str | None) -> tuple[str, ...]:
     return tuple(origin.strip() for origin in value.split(",") if origin.strip())
 
 
+def _local_network_origins(port: int = 5174) -> tuple[str, ...]:
+    """Return likely LAN origins for the local Vite dev server."""
+    origins: list[str] = []
+    try:
+        hostnames = {socket.gethostname(), socket.getfqdn()}
+        addresses: set[str] = set()
+        for hostname in hostnames:
+            try:
+                addresses.update(socket.gethostbyname_ex(hostname)[2])
+            except OSError:
+                continue
+
+        for address in addresses:
+            if address and not address.startswith("127."):
+                origins.append(f"http://{address}:{port}")
+    except OSError:
+        return ()
+
+    return tuple(sorted(set(origins)))
+
+
 def get_settings() -> AdminSettings:
     """Return current admin settings.
 
@@ -52,7 +74,15 @@ def get_settings() -> AdminSettings:
     """
     _load_env()
     configured_origins = _split_origins(os.getenv("ADMIN_CORS_ALLOW_ORIGINS"))
-    cors_origins = tuple(dict.fromkeys((*LOCAL_ADMIN_CORS_ORIGINS, *configured_origins)))
+    cors_origins = tuple(
+        dict.fromkeys(
+            (
+                *LOCAL_ADMIN_CORS_ORIGINS,
+                *_local_network_origins(),
+                *configured_origins,
+            )
+        )
+    )
 
     return AdminSettings(
         database_url=os.getenv("ADMIN_DATABASE_URL") or os.getenv("TELEMETRY_DATABASE_URL"),
@@ -68,4 +98,3 @@ def get_settings() -> AdminSettings:
         ),
         cors_allow_origins=cors_origins,
     )
-

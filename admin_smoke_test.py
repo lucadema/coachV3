@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from admin_backend.config import AdminSettings
-from admin_backend.models import EnterpriseCreate, PilotCreate, TokenType
+from admin_backend.models import EnterpriseCreate, EnterpriseUpdate, PilotCreate, PilotUpdate, TokenType
 from admin_backend.service import AdminService
 
 
@@ -43,6 +43,34 @@ class InMemoryAdminRepository:
         row["updated_at"] = now()
         return row
 
+    def update_pilots_status_for_enterprise(
+        self,
+        enterprise_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+    ) -> int:
+        updated_count = 0
+        for row in self.pilots.values():
+            if row["enterprise_id"] == enterprise_id and row["status"] == from_status:
+                row["status"] = to_status
+                row["updated_at"] = now()
+                updated_count += 1
+        return updated_count
+
+    def delete_enterprise(self, enterprise_id: str) -> bool:
+        if enterprise_id not in self.enterprises:
+            return False
+
+        pilot_ids = [
+            pilot_id for pilot_id, row in self.pilots.items()
+            if row["enterprise_id"] == enterprise_id
+        ]
+        for pilot_id in pilot_ids:
+            self.delete_pilot(pilot_id)
+        del self.enterprises[enterprise_id]
+        return True
+
     def list_pilots_for_enterprise(self, enterprise_id: str) -> list[dict]:
         return [
             row for row in self.pilots.values()
@@ -64,6 +92,19 @@ class InMemoryAdminRepository:
         row.update(updates)
         row["updated_at"] = now()
         return row
+
+    def delete_pilot(self, pilot_id: str) -> bool:
+        if pilot_id not in self.pilots:
+            return False
+
+        del self.pilots[pilot_id]
+        token_ids = [
+            token_id for token_id, row in self.tokens.items()
+            if row["pilot_id"] == pilot_id
+        ]
+        for token_id in token_ids:
+            del self.tokens[token_id]
+        return True
 
     def find_active_token(self, pilot_id: str, token_type: str) -> dict | None:
         rows = [
@@ -178,6 +219,12 @@ def main() -> None:
 
     summary = service.get_pilot_summary(pilot.id)
     check(summary.sessions_count == 1, "pilot summary returns filtered session count")
+
+    service.update_pilot(pilot.id, PilotUpdate(status="closed"))
+    service.update_enterprise(enterprise.id, EnterpriseUpdate(status="closed"))
+    service.delete_enterprise(enterprise.id)
+    check(repository.get_enterprise(enterprise.id) is None, "enterprise cleanup delete works")
+    check(repository.get_pilot(pilot.id) is None, "enterprise cleanup deletes child pilot")
 
 
 if __name__ == "__main__":
