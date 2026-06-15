@@ -8,7 +8,7 @@ export type AdminClientOptions = {
 }
 
 type RequestJsonOptions = AdminClientOptions & {
-  method?: 'GET' | 'POST' | 'PATCH'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   payload?: unknown
 }
 
@@ -109,6 +109,13 @@ export function updateEnterprise(
   })
 }
 
+export function deleteEnterprise(enterpriseId: string, options: AdminClientOptions): Promise<void> {
+  return requestJson<void>(`/admin/enterprises/${encodeURIComponent(enterpriseId)}`, {
+    ...options,
+    method: 'DELETE',
+  })
+}
+
 export function listPilots(enterpriseId: string, options: AdminClientOptions): Promise<Pilot[]> {
   return requestJson<Pilot[]>(
     `/admin/enterprises/${encodeURIComponent(enterpriseId)}/pilots`,
@@ -136,6 +143,13 @@ export function updatePilot(
     ...options,
     method: 'PATCH',
     payload,
+  })
+}
+
+export function deletePilot(pilotId: string, options: AdminClientOptions): Promise<void> {
+  return requestJson<void>(`/admin/pilots/${encodeURIComponent(pilotId)}`, {
+    ...options,
+    method: 'DELETE',
   })
 }
 

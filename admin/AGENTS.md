@@ -13,6 +13,8 @@ Admin Control Panel.
 - The frontend displays API responses and sends form actions to `admin_backend`.
 - Keep visual style consistent with Glimpse: warm off-white background, green
   text, lime accent, soft translucent panels, Inter/system sans fonts.
+- Delete controls are for authenticated internal cleanup/testing. Keep browser
+  confirmation or an equivalent guardrail before calling delete APIs.
 
 ## Current structure
 
@@ -36,4 +38,3 @@ Run from `admin/`:
 npm run test
 npm run build
 ```
-

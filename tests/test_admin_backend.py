@@ -50,6 +50,20 @@ class InMemoryAdminRepository:
         row["updated_at"] = _now()
         return row
 
+    def delete_enterprise(self, enterprise_id: str) -> bool:
+        if enterprise_id not in self.enterprises:
+            return False
+
+        pilot_ids = [
+            pilot_id for pilot_id, row in self.pilots.items()
+            if row["enterprise_id"] == enterprise_id
+        ]
+        for pilot_id in pilot_ids:
+            self.delete_pilot(pilot_id)
+
+        del self.enterprises[enterprise_id]
+        return True
+
     def list_pilots_for_enterprise(self, enterprise_id: str) -> list[dict]:
         return [
             row for row in self.pilots.values()
@@ -75,6 +89,19 @@ class InMemoryAdminRepository:
         row.update(updates)
         row["updated_at"] = _now()
         return row
+
+    def delete_pilot(self, pilot_id: str) -> bool:
+        if pilot_id not in self.pilots:
+            return False
+
+        del self.pilots[pilot_id]
+        token_ids = [
+            token_id for token_id, row in self.tokens.items()
+            if row["pilot_id"] == pilot_id
+        ]
+        for token_id in token_ids:
+            del self.tokens[token_id]
+        return True
 
     def find_active_token(self, pilot_id: str, token_type: str) -> dict | None:
         matching = [
@@ -226,6 +253,25 @@ class AdminServiceBehaviourTests(unittest.TestCase):
 
         self.assertNotIn(raw_token, hash_access_token(raw_token))
 
+    def test_delete_pilot_removes_pilot_and_tokens(self) -> None:
+        link = self.service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)
+
+        self.service.delete_pilot(self.pilot.id)
+
+        self.assertIsNone(self.repository.get_pilot(self.pilot.id))
+        self.assertNotIn(link.token_id, self.repository.tokens)
+
+    def test_delete_enterprise_removes_child_pilots(self) -> None:
+        second_pilot = self.service.create_pilot(
+            PilotCreate(enterprise_id=self.enterprise.id, name="Second Pilot")
+        )
+
+        self.service.delete_enterprise(self.enterprise.id)
+
+        self.assertIsNone(self.repository.get_enterprise(self.enterprise.id))
+        self.assertIsNone(self.repository.get_pilot(self.pilot.id))
+        self.assertIsNone(self.repository.get_pilot(second_pilot.id))
+
 
 class AdminRouteAuthTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -253,6 +299,39 @@ class AdminRouteAuthTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["name"], "Route Enterprise")
+
+    @patch.dict("os.environ", {"ADMIN_API_TOKEN": "test-admin-token"}, clear=False)
+    def test_authenticated_admin_can_delete_pilot(self) -> None:
+        enterprise = self.service.create_enterprise(EnterpriseCreate(name="Delete Route"))
+        pilot = self.service.create_pilot(
+            PilotCreate(enterprise_id=enterprise.id, name="Pilot To Delete")
+        )
+
+        response = self.client.delete(
+            f"/admin/pilots/{pilot.id}",
+            headers={"Authorization": "Bearer test-admin-token"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "deleted", "id": pilot.id})
+        self.assertIsNone(self.repository.get_pilot(pilot.id))
+
+    @patch.dict("os.environ", {"ADMIN_API_TOKEN": "test-admin-token"}, clear=False)
+    def test_authenticated_admin_can_delete_enterprise(self) -> None:
+        enterprise = self.service.create_enterprise(EnterpriseCreate(name="Enterprise To Delete"))
+        pilot = self.service.create_pilot(
+            PilotCreate(enterprise_id=enterprise.id, name="Child Pilot")
+        )
+
+        response = self.client.delete(
+            f"/admin/enterprises/{enterprise.id}",
+            headers={"Authorization": "Bearer test-admin-token"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "deleted", "id": enterprise.id})
+        self.assertIsNone(self.repository.get_enterprise(enterprise.id))
+        self.assertIsNone(self.repository.get_pilot(pilot.id))
 
     @patch.dict("os.environ", {"ADMIN_API_TOKEN": "test-admin-token"}, clear=False)
     def test_public_token_validation_does_not_require_admin_auth(self) -> None:

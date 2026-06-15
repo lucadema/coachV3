@@ -269,6 +269,32 @@ label {
   max-width: 120px;
 }
 
+.compact-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compact-actions select {
+  width: 120px;
+}
+
+.compact-actions button {
+  min-width: 82px;
+  padding: 0 12px;
+}
+
+.danger-button {
+  border-color: rgba(169, 71, 54, 0.28);
+  color: var(--danger);
+}
+
+.danger-button:hover:not(:disabled),
+.danger-button:focus-visible {
+  background: var(--danger);
+  color: white;
+}
+
 .list-stack,
 .link-stack {
   display: grid;

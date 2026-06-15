@@ -5,6 +5,8 @@
 The Admin Control Panel manages enterprise pilots for Glimpse. It creates
 enterprises, creates pilots, generates participant/dashboard access links,
 rotates or revokes links, and shows a small pilot activity summary.
+It also supports authenticated hard-delete cleanup for enterprises and pilots
+so test entries or accidental entries can be removed without manual SQL.
 
 The central design rule is separation:
 
@@ -45,6 +47,10 @@ telemetry. The schema adds:
 - `admin_access_tokens`
 - `admin_audit_events`
 - `coach_sessions.pilot_id`
+
+Deleting a pilot also deletes its access tokens through the database
+relationship. Deleting an enterprise deletes its pilots first, then the
+enterprise. Existing telemetry rows are not deleted.
 
 The admin backend does not auto-create or auto-migrate tables on startup.
 
@@ -182,4 +188,3 @@ work by extending:
 
 Keep dashboard data filtered by `pilot_id` unless an explicit enterprise-level
 dashboard is requested.
-

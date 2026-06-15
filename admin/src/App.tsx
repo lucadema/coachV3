@@ -3,6 +3,8 @@ import {
   AdminApiError,
   createEnterprise,
   createPilot,
+  deleteEnterprise,
+  deletePilot,
   generateLink,
   getPilotSummary,
   listEnterprises,
@@ -277,6 +279,50 @@ function AdminWorkspace({
     }
   }
 
+  async function handleDeleteEnterprise(enterprise: Enterprise) {
+    const confirmed = window.confirm(
+      `Delete ${enterprise.name}? This also deletes its pilots and access links.`,
+    )
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await deleteEnterprise(enterprise.id, requestOptions)
+      setEnterprises((current) => current.filter((item) => item.id !== enterprise.id))
+      setPilots([])
+      setLinks([])
+      setSummary(null)
+      setSelectedEnterpriseId((current) => (current === enterprise.id ? null : current))
+      setSelectedPilotId(null)
+      setStatus({ message: 'Enterprise deleted.', tone: 'success' })
+      await refreshEnterprises()
+    } catch (error) {
+      setStatus({ message: getErrorMessage(error), tone: 'error' })
+    }
+  }
+
+  async function handleDeletePilot(pilot: Pilot) {
+    const confirmed = window.confirm(`Delete ${pilot.name}? This also deletes its access links.`)
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await deletePilot(pilot.id, requestOptions)
+      setPilots((current) => current.filter((item) => item.id !== pilot.id))
+      setLinks([])
+      setSummary(null)
+      setSelectedPilotId((current) => (current === pilot.id ? null : current))
+      setStatus({ message: 'Pilot deleted.', tone: 'success' })
+      if (selectedEnterpriseId) {
+        await refreshPilots(selectedEnterpriseId)
+      }
+    } catch (error) {
+      setStatus({ message: getErrorMessage(error), tone: 'error' })
+    }
+  }
+
   async function handleGenerateLink(type: 'glimpse' | 'dashboard') {
     if (!selectedPilot) {
       return
@@ -389,16 +435,25 @@ function AdminWorkspace({
             <>
               <div className="detail-strip">
                 <strong>{selectedEnterprise.name}</strong>
-                <select
-                  value={selectedEnterprise.status}
-                  onChange={(event) => {
-                    void handleEnterpriseStatusChange(selectedEnterprise, event.target.value)
-                  }}
-                >
-                  <option value="active">active</option>
-                  <option value="paused">paused</option>
-                  <option value="closed">closed</option>
-                </select>
+                <div className="compact-actions">
+                  <select
+                    value={selectedEnterprise.status}
+                    onChange={(event) => {
+                      void handleEnterpriseStatusChange(selectedEnterprise, event.target.value)
+                    }}
+                  >
+                    <option value="active">active</option>
+                    <option value="paused">paused</option>
+                    <option value="closed">closed</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => void handleDeleteEnterprise(selectedEnterprise)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <CreateForm
                 nameLabel="Pilot name"
@@ -437,17 +492,26 @@ function AdminWorkspace({
                   <strong>{selectedPilot.name}</strong>
                   <small>{selectedPilot.id}</small>
                 </div>
-                <select
-                  value={selectedPilot.status}
-                  onChange={(event) => {
-                    void handlePilotStatusChange(selectedPilot, event.target.value as PilotStatus)
-                  }}
-                >
-                  <option value="draft">draft</option>
-                  <option value="active">active</option>
-                  <option value="paused">paused</option>
-                  <option value="closed">closed</option>
-                </select>
+                <div className="compact-actions">
+                  <select
+                    value={selectedPilot.status}
+                    onChange={(event) => {
+                      void handlePilotStatusChange(selectedPilot, event.target.value as PilotStatus)
+                    }}
+                  >
+                    <option value="draft">draft</option>
+                    <option value="active">active</option>
+                    <option value="paused">paused</option>
+                    <option value="closed">closed</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => void handleDeletePilot(selectedPilot)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <SummaryGrid summary={summary} />
               <div className="action-row">
