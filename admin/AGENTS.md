@@ -15,6 +15,8 @@ Admin Control Panel.
   text, lime accent, soft translucent panels, Inter/system sans fonts.
 - Delete controls are for authenticated internal cleanup/testing. Keep browser
   confirmation or an equivalent guardrail before calling delete APIs.
+- The backend owns status rules. The UI may disable invalid actions for clarity,
+  but must still surface backend validation errors.
 
 ## Current structure
 

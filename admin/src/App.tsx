@@ -449,6 +449,12 @@ function AdminWorkspace({
                   <button
                     type="button"
                     className="danger-button"
+                    disabled={selectedEnterprise.status !== 'closed'}
+                    title={
+                      selectedEnterprise.status === 'closed'
+                        ? 'Delete closed enterprise'
+                        : 'Enterprise must be closed before it can be deleted'
+                    }
                     onClick={() => void handleDeleteEnterprise(selectedEnterprise)}
                   >
                     Delete
@@ -507,6 +513,12 @@ function AdminWorkspace({
                   <button
                     type="button"
                     className="danger-button"
+                    disabled={selectedPilot.status !== 'closed'}
+                    title={
+                      selectedPilot.status === 'closed'
+                        ? 'Delete closed pilot'
+                        : 'Pilot must be closed before it can be deleted'
+                    }
                     onClick={() => void handleDeletePilot(selectedPilot)}
                   >
                     Delete

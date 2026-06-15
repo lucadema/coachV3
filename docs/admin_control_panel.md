@@ -52,6 +52,17 @@ Deleting a pilot also deletes its access tokens through the database
 relationship. Deleting an enterprise deletes its pilots first, then the
 enterprise. Existing telemetry rows are not deleted.
 
+Status rules enforced by the admin backend:
+
+- A pilot can only be deleted when its status is `closed`.
+- An enterprise can only be deleted when its status is `closed`.
+- When an enterprise moves from `active` to `paused`, active pilots under it
+  are paused.
+- When an enterprise moves from `paused` to `active`, paused pilots under it
+  are activated.
+- An enterprise can only be moved to `closed` when all of its pilots are
+  already `closed`.
+
 The admin backend does not auto-create or auto-migrate tables on startup.
 
 ## Environment

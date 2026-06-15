@@ -8,7 +8,9 @@ from admin_backend.app import app
 from admin_backend.config import AdminSettings
 from admin_backend.models import (
     EnterpriseCreate,
+    EnterpriseUpdate,
     PilotCreate,
+    PilotUpdate,
     TokenStatus,
     TokenType,
 )
@@ -49,6 +51,21 @@ class InMemoryAdminRepository:
         row.update(updates)
         row["updated_at"] = _now()
         return row
+
+    def update_pilots_status_for_enterprise(
+        self,
+        enterprise_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+    ) -> int:
+        updated_count = 0
+        for row in self.pilots.values():
+            if row["enterprise_id"] == enterprise_id and row["status"] == from_status:
+                row["status"] = to_status
+                row["updated_at"] = _now()
+                updated_count += 1
+        return updated_count
 
     def delete_enterprise(self, enterprise_id: str) -> bool:
         if enterprise_id not in self.enterprises:
@@ -253,24 +270,62 @@ class AdminServiceBehaviourTests(unittest.TestCase):
 
         self.assertNotIn(raw_token, hash_access_token(raw_token))
 
-    def test_delete_pilot_removes_pilot_and_tokens(self) -> None:
+    def test_delete_pilot_requires_closed_status(self) -> None:
         link = self.service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)
 
+        with self.assertRaisesRegex(Exception, "Pilot can only be deleted"):
+            self.service.delete_pilot(self.pilot.id)
+
+        self.service.update_pilot(self.pilot.id, PilotUpdate(status="closed"))
         self.service.delete_pilot(self.pilot.id)
 
         self.assertIsNone(self.repository.get_pilot(self.pilot.id))
         self.assertNotIn(link.token_id, self.repository.tokens)
 
-    def test_delete_enterprise_removes_child_pilots(self) -> None:
+    def test_delete_enterprise_requires_closed_status(self) -> None:
         second_pilot = self.service.create_pilot(
             PilotCreate(enterprise_id=self.enterprise.id, name="Second Pilot")
         )
 
+        with self.assertRaisesRegex(Exception, "Enterprise can only be deleted"):
+            self.service.delete_enterprise(self.enterprise.id)
+
+        self.service.update_pilot(self.pilot.id, PilotUpdate(status="closed"))
+        self.service.update_pilot(second_pilot.id, PilotUpdate(status="closed"))
+        self.service.update_enterprise(self.enterprise.id, EnterpriseUpdate(status="closed"))
         self.service.delete_enterprise(self.enterprise.id)
 
         self.assertIsNone(self.repository.get_enterprise(self.enterprise.id))
         self.assertIsNone(self.repository.get_pilot(self.pilot.id))
         self.assertIsNone(self.repository.get_pilot(second_pilot.id))
+
+    def test_enterprise_pause_and_active_transitions_cascade_pilots(self) -> None:
+        self.service.update_pilot(self.pilot.id, PilotUpdate(status="active"))
+        draft_pilot = self.service.create_pilot(
+            PilotCreate(enterprise_id=self.enterprise.id, name="Draft Pilot")
+        )
+
+        self.service.update_enterprise(self.enterprise.id, EnterpriseUpdate(status="paused"))
+
+        self.assertEqual(self.service.get_pilot(self.pilot.id).status.value, "paused")
+        self.assertEqual(self.service.get_pilot(draft_pilot.id).status.value, "draft")
+
+        self.service.update_enterprise(self.enterprise.id, EnterpriseUpdate(status="active"))
+
+        self.assertEqual(self.service.get_pilot(self.pilot.id).status.value, "active")
+        self.assertEqual(self.service.get_pilot(draft_pilot.id).status.value, "draft")
+
+    def test_enterprise_can_close_only_when_all_pilots_closed(self) -> None:
+        with self.assertRaisesRegex(Exception, "all pilots are closed"):
+            self.service.update_enterprise(self.enterprise.id, EnterpriseUpdate(status="closed"))
+
+        self.service.update_pilot(self.pilot.id, PilotUpdate(status="closed"))
+        enterprise = self.service.update_enterprise(
+            self.enterprise.id,
+            EnterpriseUpdate(status="closed"),
+        )
+
+        self.assertEqual(enterprise.status.value, "closed")
 
 
 class AdminRouteAuthTests(unittest.TestCase):
@@ -306,6 +361,7 @@ class AdminRouteAuthTests(unittest.TestCase):
         pilot = self.service.create_pilot(
             PilotCreate(enterprise_id=enterprise.id, name="Pilot To Delete")
         )
+        self.service.update_pilot(pilot.id, PilotUpdate(status="closed"))
 
         response = self.client.delete(
             f"/admin/pilots/{pilot.id}",
@@ -322,6 +378,8 @@ class AdminRouteAuthTests(unittest.TestCase):
         pilot = self.service.create_pilot(
             PilotCreate(enterprise_id=enterprise.id, name="Child Pilot")
         )
+        self.service.update_pilot(pilot.id, PilotUpdate(status="closed"))
+        self.service.update_enterprise(enterprise.id, EnterpriseUpdate(status="closed"))
 
         response = self.client.delete(
             f"/admin/enterprises/{enterprise.id}",
