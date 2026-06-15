@@ -104,14 +104,26 @@ class PostgresTelemetrySink:
         session_id: str,
         stage: str = DEFAULT_STAGE,
         session_label: str | None = None,
+        pilot_id: str | None = None,
     ) -> None:
         cursor.execute(
             """
-            INSERT INTO coach_sessions (app_session_id, current_stage, session_label)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (app_session_id) DO NOTHING
+            INSERT INTO coach_sessions (
+                app_session_id,
+                current_stage,
+                session_label,
+                pilot_id
+            )
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (app_session_id) DO UPDATE SET
+                session_label = COALESCE(
+                    coach_sessions.session_label,
+                    EXCLUDED.session_label
+                ),
+                pilot_id = COALESCE(coach_sessions.pilot_id, EXCLUDED.pilot_id),
+                updated_at = NOW()
             """,
-            (session_id, stage, session_label),
+            (session_id, stage, session_label, pilot_id),
         )
 
     def _record_session_started(self, payload: dict[str, Any]) -> None:
@@ -123,6 +135,7 @@ class PostgresTelemetrySink:
         stage = _stage(payload)
         turns_count = _nonnegative_int(payload.get("turns_count"), default=0)
         session_label = _safe_string(payload.get("session_label"))
+        pilot_id = _safe_string(payload.get("pilot_id"))
 
         def writer(cursor: Any) -> None:
             cursor.execute(
@@ -135,9 +148,10 @@ class PostgresTelemetrySink:
                     current_stage,
                     turns_count,
                     session_label,
+                    pilot_id,
                     updated_at
                 )
-                VALUES (%s, NOW(), NOW(), 'active', %s, %s, %s, NOW())
+                VALUES (%s, NOW(), NOW(), 'active', %s, %s, %s, %s, NOW())
                 ON CONFLICT (app_session_id) DO UPDATE SET
                     last_interaction_at = NOW(),
                     status = 'active',
@@ -147,9 +161,13 @@ class PostgresTelemetrySink:
                         coach_sessions.session_label,
                         EXCLUDED.session_label
                     ),
+                    pilot_id = COALESCE(
+                        coach_sessions.pilot_id,
+                        EXCLUDED.pilot_id
+                    ),
                     updated_at = NOW()
                 """,
-                (session_id, stage, turns_count, session_label),
+                (session_id, stage, turns_count, session_label, pilot_id),
             )
 
         self._write(writer)
@@ -165,6 +183,7 @@ class PostgresTelemetrySink:
         turns_count = _nonnegative_int(payload.get("turns_count"), default=0)
         status = _safe_string(payload.get("status"))
         session_label = _safe_string(payload.get("session_label"))
+        pilot_id = _safe_string(payload.get("pilot_id"))
 
         assignments: list[str] = [
             "last_interaction_at = NOW()",
@@ -182,6 +201,10 @@ class PostgresTelemetrySink:
             assignments.append("session_label = COALESCE(session_label, %s)")
             params.append(session_label)
 
+        if pilot_id:
+            assignments.append("pilot_id = COALESCE(pilot_id, %s)")
+            params.append(pilot_id)
+
         for column, key in (
             ("synthesis_generated", "synthesis_generated"),
             ("pathways_generated", "pathways_generated"),
@@ -195,7 +218,7 @@ class PostgresTelemetrySink:
         params.append(session_id)
 
         def writer(cursor: Any) -> None:
-            self._ensure_session(cursor, session_id, stage, session_label)
+            self._ensure_session(cursor, session_id, stage, session_label, pilot_id)
             cursor.execute(
                 f"""
                 UPDATE coach_sessions
@@ -217,9 +240,10 @@ class PostgresTelemetrySink:
         stage = _stage(payload)
         turns_count = _nonnegative_int(payload.get("turns_count"), default=0)
         status = _safe_string(payload.get("status")) or "completed"
+        pilot_id = _safe_string(payload.get("pilot_id"))
 
         def writer(cursor: Any) -> None:
-            self._ensure_session(cursor, session_id, stage)
+            self._ensure_session(cursor, session_id, stage, pilot_id=pilot_id)
             cursor.execute(
                 """
                 UPDATE coach_sessions
@@ -231,10 +255,11 @@ class PostgresTelemetrySink:
                     turns_count = %s,
                     synthesis_generated = synthesis_generated OR (%s = 'completed'),
                     pathways_generated = pathways_generated OR (%s = 'completed'),
+                    pilot_id = COALESCE(pilot_id, %s),
                     updated_at = NOW()
                 WHERE app_session_id = %s
                 """,
-                (status, stage, turns_count, status, status, session_id),
+                (status, stage, turns_count, status, status, pilot_id, session_id),
             )
 
         self._write(writer)
@@ -247,9 +272,10 @@ class PostgresTelemetrySink:
             return None
 
         feedback_payload = _feedback_payload_json(payload)
+        pilot_id = _safe_string(payload.get("pilot_id"))
 
         def writer(cursor: Any) -> None:
-            self._ensure_session(cursor, session_id)
+            self._ensure_session(cursor, session_id, pilot_id=pilot_id)
             cursor.execute(
                 """
                 UPDATE coach_sessions
@@ -259,6 +285,7 @@ class PostgresTelemetrySink:
                     feedback_answer_2 = %s,
                     feedback_dropdown_values = %s,
                     feedback_payload = %s::jsonb,
+                    pilot_id = COALESCE(pilot_id, %s),
                     updated_at = NOW()
                 WHERE app_session_id = %s
                 """,
@@ -267,6 +294,7 @@ class PostgresTelemetrySink:
                     _bool_or_none(payload.get("answer_2")),
                     _string_list_or_none(payload.get("dropdown_values")),
                     feedback_payload,
+                    pilot_id,
                     session_id,
                 ),
             )

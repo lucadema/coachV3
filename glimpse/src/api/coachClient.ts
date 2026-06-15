@@ -119,8 +119,11 @@ export async function sendUserMessage(
   options: CoachClientOptions = {},
 ): Promise<BackendTurnResponse> {
   const launchContext = getLaunchContext()
-  const clientContext = launchContext.sessionLabel
-    ? { session_label: launchContext.sessionLabel }
+  const clientContext = launchContext.sessionLabel || launchContext.accessToken
+    ? {
+        ...(launchContext.sessionLabel ? { session_label: launchContext.sessionLabel } : {}),
+        ...(launchContext.accessToken ? { access_token: launchContext.accessToken } : {}),
+      }
     : undefined
 
   return requestJson<BackendTurnResponse>('/user_message', {

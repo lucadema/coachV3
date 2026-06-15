@@ -11,6 +11,7 @@ from typing import Any
 
 
 SESSION_LABEL_PATTERN = re.compile(r"^[a-z0-9_.-]{1,64}$")
+ACCESS_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{20,256}$")
 
 
 def sanitize_session_label(value: Any) -> str | None:
@@ -36,6 +37,36 @@ def extract_session_label(client_context: Any) -> str | None:
 
         return sanitize_session_label(
             client_context.get("session_label") or client_context.get("sessionLabel")
+        )
+    except Exception:
+        return None
+
+
+def sanitize_access_token(value: Any) -> str | None:
+    """Return a conservative access token or ``None`` for invalid input."""
+    try:
+        if not isinstance(value, str):
+            return None
+
+        normalized = value.strip()
+        if not ACCESS_TOKEN_PATTERN.fullmatch(normalized):
+            return None
+
+        return normalized
+    except Exception:
+        return None
+
+
+def extract_access_token(client_context: Any) -> str | None:
+    """Extract participant access token from optional client context."""
+    try:
+        if not isinstance(client_context, dict):
+            return None
+
+        return sanitize_access_token(
+            client_context.get("access_token")
+            or client_context.get("accessToken")
+            or client_context.get("token")
         )
     except Exception:
         return None

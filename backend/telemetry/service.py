@@ -149,6 +149,7 @@ def record_session_started(
     state: str | None,
     turns_count: int | None,
     session_label: str | None = None,
+    pilot_id: str | None = None,
 ) -> None:
     try:
         payload = {
@@ -160,6 +161,8 @@ def record_session_started(
         }
         if session_label:
             payload["session_label"] = session_label
+        if pilot_id:
+            payload["pilot_id"] = pilot_id
         _emit(payload)
     except Exception:
         return None
@@ -176,6 +179,7 @@ def record_session_updated(
     pdf_downloaded: bool | None = None,
     status: str | None = None,
     session_label: str | None = None,
+    pilot_id: str | None = None,
 ) -> None:
     try:
         payload = {
@@ -191,6 +195,8 @@ def record_session_updated(
         }
         if session_label:
             payload["session_label"] = session_label
+        if pilot_id:
+            payload["pilot_id"] = pilot_id
         _emit(payload)
     except Exception:
         return None
@@ -203,6 +209,7 @@ def record_session_closed(
     state: str | None,
     turns_count: int | None,
     status: str = "completed",
+    pilot_id: str | None = None,
 ) -> None:
     try:
         _emit(
@@ -213,6 +220,7 @@ def record_session_closed(
                 "state": state,
                 "turns_count": turns_count,
                 "status": status,
+                "pilot_id": pilot_id,
             }
         )
     except Exception:
@@ -226,6 +234,7 @@ def record_feedback_submitted(
     answer_2: bool | None = None,
     dropdown_values: list[str] | None = None,
     payload: dict[str, Any] | None = None,
+    pilot_id: str | None = None,
 ) -> None:
     try:
         _emit(
@@ -235,6 +244,7 @@ def record_feedback_submitted(
                 "answer_1": answer_1,
                 "answer_2": answer_2,
                 "dropdown_values": dropdown_values,
+                "pilot_id": pilot_id,
                 # Do not emit arbitrary payload content; keys are enough for
                 # future schema debugging without risking personal data.
                 "payload_keys": _safe_payload_keys(payload),

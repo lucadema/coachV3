@@ -19,8 +19,9 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from backend.client_context import extract_session_label
+from backend.client_context import extract_access_token, extract_session_label
 from backend import engine
+from backend import pilot_access
 from backend import telemetry
 from backend.enums import (
     ChatRole,
@@ -330,6 +331,15 @@ def handle_user_msg(
     if incoming_session_label and session.session_label is None:
         session.session_label = incoming_session_label
 
+    incoming_access_token = extract_access_token(client_context)
+    if incoming_access_token:
+        pilot_id = pilot_access.resolve_glimpse_pilot_id(incoming_access_token)
+        if not pilot_id:
+            raise PermissionError("Invalid or inactive Glimpse participant access token.")
+        if session.pilot_id is not None and session.pilot_id != pilot_id:
+            raise PermissionError("Glimpse participant token does not match this session.")
+        session.pilot_id = pilot_id
+
     session.evaluation_message = None
     session.coach_message = None
     session.debug_message = None
@@ -343,6 +353,7 @@ def handle_user_msg(
             state=session.state,
             turns_count=session.turn_count,
             session_label=session.session_label,
+            pilot_id=session.pilot_id,
         )
 
     session.user_message = user_message
@@ -371,6 +382,7 @@ def handle_user_msg(
         pdf_downloaded=None,
         status=session_status,
         session_label=session.session_label,
+        pilot_id=session.pilot_id,
     )
     if session_status is not None and not was_terminal_session:
         telemetry.record_session_closed(
@@ -379,6 +391,7 @@ def handle_user_msg(
             state=session.state,
             turns_count=session.turn_count,
             status=session_status,
+            pilot_id=session.pilot_id,
         )
 
     state_store.save_session(session)

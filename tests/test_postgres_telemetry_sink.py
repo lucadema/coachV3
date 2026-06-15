@@ -47,6 +47,7 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
                 "stage": "classification",
                 "turns_count": 0,
                 "session_label": "luca",
+                "pilot_id": "pilot-1",
             }
         )
 
@@ -55,6 +56,7 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
             params for sql, params in cursor.statements if "INSERT INTO coach_sessions" in sql
         )
         self.assertIn("luca", session_insert or ())
+        self.assertIn("pilot-1", session_insert or ())
         connection.commit.assert_called_once()
         connection.rollback.assert_not_called()
         connection.close.assert_called_once()
@@ -72,11 +74,13 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
                 "stage": "coaching",
                 "turns_count": 1,
                 "session_label": "luca",
+                "pilot_id": "pilot-1",
             }
         )
 
         update_sql = next(sql for sql, _ in cursor.statements if "UPDATE coach_sessions" in sql)
         self.assertIn("session_label = COALESCE(session_label, %s)", update_sql)
+        self.assertIn("pilot_id = COALESCE(pilot_id, %s)", update_sql)
         connection.commit.assert_called_once()
 
     def test_llm_call_write_inserts_usage_row(self) -> None:
@@ -127,7 +131,7 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
         self.assertIn("pathways_generated = pathways_generated OR", update_sql)
         self.assertEqual(
             update_params,
-            ("completed", "closure", 8, "completed", "completed", "session-1"),
+            ("completed", "closure", 8, "completed", "completed", None, "session-1"),
         )
         connection.commit.assert_called_once()
 

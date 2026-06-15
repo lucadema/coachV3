@@ -107,6 +107,8 @@ def user_message(user_msg: UserMsg) -> UserMsgReply:
             user_message=user_msg.user_message,
             client_context=user_msg.client_context,
         )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -145,6 +147,7 @@ def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
             pdf_downloaded=True,
             status=session_status,
             session_label=session.session_label,
+            pilot_id=session.pilot_id,
         )
         return {"status": "ok"}
 
@@ -154,6 +157,7 @@ def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
         answer_2=event.answer_2,
         dropdown_values=event.dropdown_values,
         payload=event.payload,
+        pilot_id=session.pilot_id,
     )
     return {"status": "ok"}
 

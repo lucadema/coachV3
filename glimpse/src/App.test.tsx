@@ -407,7 +407,11 @@ describe('App backend connection flow', () => {
     const callsBeforeClose = fetchMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
 
-    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeClose)
+    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeClose + 1)
+    const closeBody = fetchMock.mock.calls.at(-1)?.[1]?.body
+    expect(typeof closeBody === 'string' && closeBody.includes('"event":"feedback_submitted"')).toBe(
+      true,
+    )
     expect(screen.getByText('We hope you’ve enjoyed this glimpse of Aether')).toBeTruthy()
   })
 

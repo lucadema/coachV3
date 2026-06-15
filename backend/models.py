@@ -69,6 +69,9 @@ class Session(BaseModel):
     # Optional launch metadata only; not authentication and not user identity.
     session_label: str | None = None
 
+    # Stable pilot context resolved from admin-managed access tokens.
+    pilot_id: str | None = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
