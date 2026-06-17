@@ -83,6 +83,34 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
         self.assertIn("pilot_id = COALESCE(pilot_id, %s)", update_sql)
         connection.commit.assert_called_once()
 
+    def test_session_update_sets_assessment_fields_without_overwrite(self) -> None:
+        cursor = FakeCursor()
+        connection = FakeConnection(cursor)
+        sink = PostgresTelemetrySink("postgresql://example")
+        sink._connect = Mock(return_value=connection)  # type: ignore[method-assign]
+
+        sink.record(
+            {
+                "event": "session_updated",
+                "session_id": "session-1",
+                "stage": "synthesis",
+                "turns_count": 4,
+                "problem_category": "lack_of_clarity_alignment",
+                "engagement_signal": "no_visible_risk",
+            }
+        )
+
+        update_sql, update_params = next(
+            (sql, params)
+            for sql, params in cursor.statements
+            if "UPDATE coach_sessions" in sql
+        )
+        self.assertIn("problem_category = COALESCE(problem_category, %s)", update_sql)
+        self.assertIn("engagement_signal = COALESCE(engagement_signal, %s)", update_sql)
+        self.assertIn("lack_of_clarity_alignment", update_params or ())
+        self.assertIn("no_visible_risk", update_params or ())
+        connection.commit.assert_called_once()
+
     def test_llm_call_write_inserts_usage_row(self) -> None:
         cursor = FakeCursor()
         connection = FakeConnection(cursor)

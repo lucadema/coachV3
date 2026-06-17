@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS coach_sessions (
     synthesis_generated BOOLEAN NOT NULL DEFAULT FALSE,
     pathways_generated BOOLEAN NOT NULL DEFAULT FALSE,
     pdf_downloaded BOOLEAN NOT NULL DEFAULT FALSE,
+    problem_category TEXT NULL,
+    engagement_signal TEXT NULL,
 
     feedback_submitted_at TIMESTAMPTZ NULL,
     feedback_answer_1 BOOLEAN NULL,

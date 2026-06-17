@@ -594,3 +594,24 @@ def coach(
         },
         no_output_plain="TODO: engine coach message not implemented yet.",
     )
+
+
+def run_raw_prompt(
+    *,
+    prompt: str,
+    llm_operation: str,
+    telemetry_session_id: str | None = None,
+) -> tuple[str | None, str]:
+    """
+    Run a configured raw prompt through the existing LLM boundary.
+
+    This is for backend-only sidecar assessments that need strict, caller-owned
+    parsing rather than the stage evaluate/coach JSON fallback behavior.
+    """
+    return _call_llm_with_context(
+        prompt,
+        {
+            "session_id": telemetry_session_id,
+            "llm_operation": llm_operation,
+        },
+    )

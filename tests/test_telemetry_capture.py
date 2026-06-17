@@ -148,6 +148,43 @@ class PilotContextCaptureTests(unittest.TestCase):
         self.assertEqual(mock_record_started.call_args.kwargs["pilot_id"], "pilot-1")
         self.assertEqual(mock_record_updated.call_args.kwargs["pilot_id"], "pilot-1")
 
+    @patch("backend.controller.telemetry.record_session_started")
+    @patch("backend.controller.telemetry.record_session_updated")
+    @patch("backend.controller.assess_synthesis_telemetry")
+    @patch("backend.controller._run_stage_loop")
+    def test_synthesis_generation_triggers_assessment_before_update(
+        self,
+        mock_run_stage_loop,
+        mock_assess,
+        mock_record_updated,
+        _mock_record_started,
+    ) -> None:
+        def complete_synthesis(session: Session) -> Session:
+            session.stage = Stage.SYNTHESIS.value
+            session.state = SynthesisState.VALIDATING.value
+            session.coach_message = "The synthesis is about unclear ownership."
+            session.problem_category = "lack_of_clarity_alignment"
+            session.engagement_signal = "frustration_signal"
+            return session
+
+        mock_run_stage_loop.side_effect = complete_synthesis
+
+        handle_user_msg("session-1", "We keep missing ownership on decisions.")
+
+        mock_assess.assert_called_once()
+        self.assertEqual(
+            mock_assess.call_args.kwargs["synthesis_text"],
+            "The synthesis is about unclear ownership.",
+        )
+        self.assertEqual(
+            mock_record_updated.call_args.kwargs["problem_category"],
+            "lack_of_clarity_alignment",
+        )
+        self.assertEqual(
+            mock_record_updated.call_args.kwargs["engagement_signal"],
+            "frustration_signal",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

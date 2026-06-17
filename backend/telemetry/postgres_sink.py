@@ -184,6 +184,26 @@ class PostgresTelemetrySink:
         status = _safe_string(payload.get("status"))
         session_label = _safe_string(payload.get("session_label"))
         pilot_id = _safe_string(payload.get("pilot_id"))
+        problem_category = _controlled_value(
+            payload.get("problem_category"),
+            {
+                "organisational_friction",
+                "lack_of_clarity_alignment",
+                "poor_decision_making",
+                "siloed_thinking",
+                "strategy_execution_gap",
+                "inability_to_adapt",
+            },
+        )
+        engagement_signal = _controlled_value(
+            payload.get("engagement_signal"),
+            {
+                "no_visible_risk",
+                "frustration_signal",
+                "voice_suppression_signal",
+                "disengagement_risk",
+            },
+        )
 
         assignments: list[str] = [
             "last_interaction_at = NOW()",
@@ -204,6 +224,14 @@ class PostgresTelemetrySink:
         if pilot_id:
             assignments.append("pilot_id = COALESCE(pilot_id, %s)")
             params.append(pilot_id)
+
+        if problem_category:
+            assignments.append("problem_category = COALESCE(problem_category, %s)")
+            params.append(problem_category)
+
+        if engagement_signal:
+            assignments.append("engagement_signal = COALESCE(engagement_signal, %s)")
+            params.append(engagement_signal)
 
         for column, key in (
             ("synthesis_generated", "synthesis_generated"),
@@ -408,6 +436,14 @@ def _string_list_or_none(value: Any) -> list[str] | None:
 
     strings = [str(item) for item in value if item is not None]
     return strings or None
+
+
+def _controlled_value(value: Any, allowed_values: set[str]) -> str | None:
+    text = _safe_string(value)
+    if text in allowed_values:
+        return text
+
+    return None
 
 
 def _json_or_none(value: Any) -> str | None:

@@ -1,0 +1,70 @@
+problem_category_prompt: |
+  You are classifying an Aether Glimpse problem synthesis for anonymous organisational telemetry.
+
+  Classify the synthesis into exactly one of the following values:
+
+  - organisational_friction
+  - lack_of_clarity_alignment
+  - poor_decision_making
+  - siloed_thinking
+  - strategy_execution_gap
+  - inability_to_adapt
+
+  Definitions:
+
+  organisational_friction:
+    Time, energy or attention is lost through process drag, duplication, avoidable handoffs, meetings, approvals or coordination overhead.
+
+  lack_of_clarity_alignment:
+    People are working, but priorities, ownership, expectations, goals or responsibilities are unclear or interpreted differently.
+
+  poor_decision_making:
+    Decisions are delayed, avoided, escalated unnecessarily, made without clear criteria, or lack clear accountability.
+
+  siloed_thinking:
+    Teams, roles or functions operate locally without enough shared context, knowledge flow or cross-boundary collaboration.
+
+  strategy_execution_gap:
+    Direction, intent or priorities exist, but they do not translate into clear, coordinated action.
+
+  inability_to_adapt:
+    The need for change is recognised, but the organisation struggles to absorb, implement or sustain the change.
+
+  Return only valid JSON in this exact shape:
+  {"problem_category": "<one valid value or null>"}
+
+  Use null if the synthesis is missing, unclear, not work-related, not organisational in nature, or cannot be classified safely.
+
+engagement_signal_prompt: |
+  You are classifying an Aether Glimpse coaching conversation for anonymous organisational telemetry.
+
+  Assess the dominant engagement or contribution signal in the conversation leading to synthesis.
+  Do not assess generated resolution pathways.
+  Do not classify emotional tone alone.
+  Classify organisational consequence: whether the organisation appears to be losing voice, contribution, trust, initiative or engagement.
+
+  Classify the conversation into exactly one of the following values:
+
+  - no_visible_risk
+  - frustration_signal
+  - voice_suppression_signal
+  - disengagement_risk
+
+  Definitions:
+
+  no_visible_risk:
+    The conversation is suitable for engagement assessment, but there is no clear sign of contribution loss, voice suppression, withdrawal or disengagement.
+
+  frustration_signal:
+    The user still appears willing to improve or engage, but energy is being consumed by friction, delay, repeated inaction, ambiguity or organisational difficulty.
+
+  voice_suppression_signal:
+    The user appears hesitant to raise issues, ideas or concerns, or has learned that speaking up is unlikely to be useful.
+
+  disengagement_risk:
+    The conversation suggests stronger withdrawal, reduced willingness to contribute, loss of trust that the organisation will listen or act, or movement toward emotional disengagement.
+
+  Return only valid JSON in this exact shape:
+  {"engagement_signal": "<one valid value or null>"}
+
+  Use null if the conversation is missing, too short, not work-related, not suitable for engagement assessment, or does not contain enough evidence to assess contribution, voice, frustration or disengagement.

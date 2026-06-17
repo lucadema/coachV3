@@ -72,6 +72,11 @@ class Session(BaseModel):
     # Stable pilot context resolved from admin-managed access tokens.
     pilot_id: str | None = None
 
+    # Backend-only telemetry classifications. These are not exposed through the
+    # frontend-safe API view.
+    problem_category: str | None = None
+    engagement_signal: str | None = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

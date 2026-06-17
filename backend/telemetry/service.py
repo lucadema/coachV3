@@ -180,6 +180,8 @@ def record_session_updated(
     status: str | None = None,
     session_label: str | None = None,
     pilot_id: str | None = None,
+    problem_category: str | None = None,
+    engagement_signal: str | None = None,
 ) -> None:
     try:
         payload = {
@@ -197,6 +199,10 @@ def record_session_updated(
             payload["session_label"] = session_label
         if pilot_id:
             payload["pilot_id"] = pilot_id
+        if problem_category:
+            payload["problem_category"] = problem_category
+        if engagement_signal:
+            payload["engagement_signal"] = engagement_signal
         _emit(payload)
     except Exception:
         return None

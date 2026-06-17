@@ -17,6 +17,7 @@ Stage modules own:
 from __future__ import annotations
 
 import uuid
+import logging
 from typing import Any
 
 from backend.client_context import extract_access_token, extract_session_label
@@ -36,7 +37,10 @@ from backend.enums import (
 from backend.models import ChatMessage, Session, StageReply
 from backend.state_store import state_store
 from backend.stages import classification, closure, coaching, pathways, synthesis
+from backend.telemetry.assessment import assess_synthesis_telemetry
 
+
+logger = logging.getLogger(__name__)
 
 INITIAL_STATE_BY_STAGE = {
     Stage.CLASSIFICATION: ClassificationState.EVALUATING.value,
@@ -372,6 +376,18 @@ def handle_user_msg(
     # can replace the sink without changing controller orchestration.
     session_status = _session_status(session)
     synthesis_generated, pathways_generated = _telemetry_generation_flags(session)
+    if synthesis_generated is True and session.coach_message:
+        try:
+            assess_synthesis_telemetry(session, synthesis_text=session.coach_message)
+        except Exception as exc:
+            logger.warning(
+                "Telemetry synthesis assessment failed session_id=%s error_type=%s error=%s",
+                session.session_id,
+                type(exc).__name__,
+                str(exc)[:300],
+            )
+            pass
+
     telemetry.record_session_updated(
         session_id=session.session_id,
         stage=session.stage,
@@ -383,6 +399,8 @@ def handle_user_msg(
         status=session_status,
         session_label=session.session_label,
         pilot_id=session.pilot_id,
+        problem_category=session.problem_category,
+        engagement_signal=session.engagement_signal,
     )
     if session_status is not None and not was_terminal_session:
         telemetry.record_session_closed(

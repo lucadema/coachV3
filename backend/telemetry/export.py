@@ -31,6 +31,8 @@ SESSION_COLUMNS = [
     "synthesis_generated",
     "pathways_generated",
     "pdf_downloaded",
+    "problem_category",
+    "engagement_signal",
     "feedback_submitted_at",
     "feedback_answer_1",
     "feedback_answer_2",
@@ -72,6 +74,8 @@ SUMMARY_COLUMNS = [
     "synthesis_generated",
     "pathways_generated",
     "pdf_downloaded",
+    "problem_category",
+    "engagement_signal",
     "llm_calls",
     "input_tokens_total",
     "output_tokens_total",
@@ -224,6 +228,8 @@ def _fetch_session_token_summary_sheet(
         _column_or_null("s", "synthesis_generated", session_columns),
         _column_or_null("s", "pathways_generated", session_columns),
         _column_or_null("s", "pdf_downloaded", session_columns),
+        _column_or_null("s", "problem_category", session_columns),
+        _column_or_null("s", "engagement_signal", session_columns),
     ]
     aggregate_parts = [
         "COUNT(u.id) AS llm_calls" if "id" in usage_columns else "0 AS llm_calls",
@@ -264,6 +270,8 @@ def _fetch_session_token_summary_sheet(
             "synthesis_generated",
             "pathways_generated",
             "pdf_downloaded",
+            "problem_category",
+            "engagement_signal",
         )
         if column in session_columns
     ]
