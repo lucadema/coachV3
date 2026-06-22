@@ -19,10 +19,13 @@ from typing import Any, Literal
 from uuid import uuid4
 
 import yaml
+from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+
+from backend import telemetry
 
 
 RESPONSE_DELAY_SECONDS = 1
@@ -51,6 +54,10 @@ PILOT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 _SESSIONS: dict[str, dict[str, Any]] = {}
 logger = logging.getLogger(__name__)
+
+
+def _load_env() -> None:
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 
 class FlexibleRequest(BaseModel):
@@ -107,6 +114,8 @@ def _store_session(session_view: dict[str, Any], **updates: Any) -> dict[str, An
             "stage_turn_count": 0,
             "stage_context": {},
             "pilot_id": None,
+            "telemetry_started": False,
+            "telemetry_closed": False,
             "feedback_pack_id": None,
             "feedback_responses": None,
         },
@@ -198,6 +207,87 @@ def _store_turn(
         turn_count=turn_count,
         stage_turn_count=turn_count,
     )
+
+
+def _session_status(session: dict[str, Any]) -> str | None:
+    session_view = session.get("session") or {}
+    if session_view.get("completed"):
+        return "completed"
+    if session_view.get("cancelled"):
+        return "cancelled"
+    return None
+
+
+def _telemetry_generation_flags(session: dict[str, Any]) -> tuple[bool | None, bool | None]:
+    session_view = session.get("session") or {}
+    stage = session_view.get("stage")
+    state = session_view.get("state")
+
+    synthesis_generated = None
+    pathways_generated = None
+
+    if stage in {"synthesis", "pathways", "closure"}:
+        synthesis_generated = True
+    if stage in {"pathways", "closure"}:
+        pathways_generated = True
+    if stage == "synthesis" and state == "validating":
+        synthesis_generated = True
+    if stage == "pathways" and state == "presenting":
+        pathways_generated = True
+
+    return synthesis_generated, pathways_generated
+
+
+def _record_test_session_started(session_id: str, session: dict[str, Any]) -> None:
+    if session.get("telemetry_started"):
+        return
+
+    _load_env()
+    session_view = session.get("session") or {}
+    telemetry.record_session_started(
+        session_id=session_id,
+        stage=session_view.get("stage"),
+        state=session_view.get("state"),
+        turns_count=session.get("turn_count", 0),
+        pilot_id=session.get("pilot_id"),
+    )
+    session["telemetry_started"] = True
+
+
+def _record_test_session_updated(session_id: str, session: dict[str, Any]) -> None:
+    _load_env()
+    session_view = session.get("session") or {}
+    status = _session_status(session)
+    synthesis_generated, pathways_generated = _telemetry_generation_flags(session)
+    telemetry.record_session_updated(
+        session_id=session_id,
+        stage=session_view.get("stage"),
+        state=session_view.get("state"),
+        turns_count=session.get("turn_count", 0),
+        synthesis_generated=synthesis_generated,
+        pathways_generated=pathways_generated,
+        pdf_downloaded=None,
+        status=status,
+        pilot_id=session.get("pilot_id"),
+    )
+
+
+def _record_test_session_closed(session_id: str, session: dict[str, Any]) -> None:
+    status = _session_status(session)
+    if status is None or session.get("telemetry_closed"):
+        return
+
+    _load_env()
+    session_view = session.get("session") or {}
+    telemetry.record_session_closed(
+        session_id=session_id,
+        stage=session_view.get("stage"),
+        state=session_view.get("state"),
+        turns_count=session.get("turn_count", 0),
+        status=status,
+        pilot_id=session.get("pilot_id"),
+    )
+    session["telemetry_closed"] = True
 
 
 def _extract_pilot_id(client_context: Any) -> str | None:
@@ -347,12 +437,17 @@ async def user_message(payload: UserMsg) -> dict[str, Any]:
         session["pilot_id"] = incoming_pilot_id
 
     next_turn = int(session.get("turn_count") or 0) + 1
+    _record_test_session_started(payload.session_id, session)
 
-    return _turn_response(
+    response = _turn_response(
         session_id=payload.session_id,
         turn_count=next_turn,
         user_message_text=payload.user_message,
     )
+    updated_session = _SESSIONS[payload.session_id]
+    _record_test_session_updated(payload.session_id, updated_session)
+    _record_test_session_closed(payload.session_id, updated_session)
+    return response
 
 
 @app.get("/coach/v2/feedback-form")
@@ -373,14 +468,47 @@ async def submit_feedback(submission: FeedbackSubmission) -> dict[str, str]:
     _validate_feedback_submission(submission)
     session["feedback_pack_id"] = submission.feedback_pack_id
     session["feedback_responses"] = submission.responses
+    _load_env()
+    telemetry.record_feedback_submitted(
+        session_id=submission.session_id,
+        feedback_pack_id=submission.feedback_pack_id,
+        feedback_responses=submission.responses,
+        pilot_id=session.get("pilot_id"),
+    )
     return {"status": "ok"}
 
 
 @app.post("/telemetry/session_event")
 async def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
-    if event.session_id not in _SESSIONS:
+    session = _SESSIONS.get(event.session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail=f"Session not found: {event.session_id}")
 
+    session_view = session.get("session") or {}
+    if event.event == "pdf_downloaded":
+        _load_env()
+        telemetry.record_session_updated(
+            session_id=event.session_id,
+            stage=session_view.get("stage"),
+            state=session_view.get("state"),
+            turns_count=session.get("turn_count", 0),
+            pdf_downloaded=True,
+            status=_session_status(session),
+            pilot_id=session.get("pilot_id"),
+        )
+        return {"status": "ok"}
+
+    _load_env()
+    telemetry.record_feedback_submitted(
+        session_id=event.session_id,
+        feedback_pack_id="legacy_fixed_feedback",
+        feedback_responses={
+            "answer_1": event.answer_1,
+            "answer_2": event.answer_2,
+            "dropdown_values": event.dropdown_values or [],
+        },
+        pilot_id=session.get("pilot_id"),
+    )
     return {"status": "ok"}
 
 
@@ -531,6 +659,7 @@ def _load_feedback_config() -> dict[str, Any] | None:
 
 
 def _database_url() -> str | None:
+    _load_env()
     return os.getenv("ADMIN_DATABASE_URL") or os.getenv("TELEMETRY_DATABASE_URL")
 
 
