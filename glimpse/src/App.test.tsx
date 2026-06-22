@@ -340,16 +340,9 @@ describe('App backend connection flow', () => {
 
     expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
     expect(screen.queryByText('Backend response placeholder')).toBeNull()
-
-    const callsBeforeDownload = fetchMock.mock.calls.length
-    fireEvent.click(screen.getByRole('button', { name: /download session pdf/i }))
-
-    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeDownload)
-    expect(downloadSessionPdf).toHaveBeenCalledWith({
-      pathways: [{ title: 'Pathway one', body: 'Details' }],
-      problemStatement: 'I need to reset expectations with my team',
-      synthesis: 'Here is the synthesis.',
-    })
+    expect(screen.queryByRole('button', { name: /download session pdf/i })).toBeNull()
+    expect(screen.getByText('To continue, please heart your most preferred option.')).toBeTruthy()
+    expect((getLastContinueButton() as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('continues from pathways to local feedback, then closes locally', async () => {
@@ -450,6 +443,19 @@ describe('App backend connection flow', () => {
     const closeBody = fetchMock.mock.calls.at(-1)?.[1]?.body
     expect(typeof closeBody === 'string' && closeBody.includes('"feedback_pack_id":"glimpse_default"')).toBe(true)
     expect(screen.getByText('We hope you’ve enjoyed this glimpse of Aether')).toBeTruthy()
+    expect(
+      screen.getByText('Feel free to download a copy of your session and to start a new one.'),
+    ).toBeTruthy()
+
+    const callsBeforeDownload = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: /download session pdf/i }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeDownload)
+    expect(downloadSessionPdf).toHaveBeenCalledWith({
+      pathways: [{ title: 'Pathway one', body: 'Details' }],
+      problemStatement: 'I need to reset expectations with my team',
+      synthesis: 'Here is the synthesis.',
+    })
   })
 
   it('keeps refined synthesis on synthesis review when backend returns pathways preparing', async () => {
@@ -604,6 +610,7 @@ describe('App backend connection flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /expand pathway one/i }))
     expect(screen.getByText('Details')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /close expanded pathway/i }))
+    fireEvent.click(screen.getByRole('button', { name: /heart pathway one/i }))
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     await flushPromises()
 

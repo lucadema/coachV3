@@ -500,10 +500,14 @@ export function useGlimpseSession() {
       : (stablePathways.find((pathway) => pathway.title === selectedPathwayTitle) ?? null)
 
   function handleDownloadPathwaysPdf() {
+    const sourcePathways = step === 'pathways' ? pathways : (sessionContent.pathways ?? pathways)
+    const sourcePathwaysText =
+      step === 'pathways' ? pathwaysText : (sessionContent.rawPathwaysText ?? pathwaysText)
+
     handleDownloadPdf({
       ...sessionContent,
-      pathways,
-      rawPathwaysText: pathwaysText,
+      pathways: sourcePathways,
+      rawPathwaysText: sourcePathwaysText,
     })
   }
 

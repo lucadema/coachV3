@@ -15,7 +15,10 @@ DEFAULT_DASHBOARD_ACCESS_URL_TEMPLATE = "http://localhost:5175/?t={token}"
 LOCAL_ADMIN_CORS_ORIGINS = (
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
 )
+LOCAL_ENVIRONMENT_NAMES = {"", "local", "development", "dev", "test"}
 
 
 @dataclass(frozen=True)
@@ -28,6 +31,7 @@ class AdminSettings:
     glimpse_access_url_template: str
     dashboard_access_url_template: str
     cors_allow_origins: tuple[str, ...]
+    require_configured_url_templates: bool = False
 
 
 def _repo_root() -> Path:
@@ -66,6 +70,13 @@ def _local_network_origins(port: int = 5174) -> tuple[str, ...]:
     return tuple(sorted(set(origins)))
 
 
+def _is_nonlocal_runtime(environment_name: str) -> bool:
+    if os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID"):
+        return True
+
+    return environment_name.strip().lower() not in LOCAL_ENVIRONMENT_NAMES
+
+
 def get_settings() -> AdminSettings:
     """Return current admin settings.
 
@@ -84,10 +95,12 @@ def get_settings() -> AdminSettings:
         )
     )
 
+    environment_name = os.getenv("ADMIN_ENVIRONMENT", os.getenv("ENVIRONMENT", "local"))
+
     return AdminSettings(
         database_url=os.getenv("ADMIN_DATABASE_URL") or os.getenv("TELEMETRY_DATABASE_URL"),
         admin_api_token=os.getenv("ADMIN_API_TOKEN"),
-        environment_name=os.getenv("ADMIN_ENVIRONMENT", os.getenv("ENVIRONMENT", "local")),
+        environment_name=environment_name,
         glimpse_access_url_template=(
             os.getenv("GLIMPSE_ACCESS_URL_TEMPLATE")
             or DEFAULT_GLIMPSE_ACCESS_URL_TEMPLATE
@@ -97,4 +110,5 @@ def get_settings() -> AdminSettings:
             or DEFAULT_DASHBOARD_ACCESS_URL_TEMPLATE
         ),
         cors_allow_origins=cors_origins,
+        require_configured_url_templates=_is_nonlocal_runtime(environment_name),
     )

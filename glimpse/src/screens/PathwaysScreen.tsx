@@ -4,14 +4,13 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
-import { CloseIcon, DownloadIcon, ExpandIcon, HeartIcon } from '../components/onboarding/UiIcons'
+import { CloseIcon, ExpandIcon, HeartIcon } from '../components/onboarding/UiIcons'
 import type { PathwayCard } from '../types/session'
 
 type PathwaysScreenProps = {
   error?: string | null
   isLoading?: boolean
   onContinue: () => void | Promise<void>
-  onDownloadPdf: () => void
   onSelectPathway?: (pathway: PathwayCard) => void
   pathways: PathwayCard[]
   rawPathwaysText?: string
@@ -21,8 +20,7 @@ type PathwaysScreenProps = {
 const introText =
   'Based on everything we have explored, here are the resolution pathways available to you. Each one represents a distinct decision. Expand each resolution pathway for more details'
 
-const downloadNotice =
-  'You’re welcome to keep your problem statement and resolution pathways from this session. The download does not include the coaching conversation that produced them.'
+const selectionPrompt = 'To continue, please heart your most preferred option.'
 
 function ExpandButton({
   disabled,
@@ -55,19 +53,6 @@ function CloseButton({ onClick }: { onClick: () => void }) {
       className="absolute right-[7px] top-[7px] flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]"
     >
       <CloseIcon />
-    </button>
-  )
-}
-
-function DownloadButton({ onDownloadPdf }: { onDownloadPdf: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label="Download session PDF"
-      onClick={onDownloadPdf}
-      className="absolute left-[39px] top-[588px] flex size-[30px] cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-[#dbec03] bg-transparent text-[#75b83b]"
-    >
-      <DownloadIcon />
     </button>
   )
 }
@@ -155,7 +140,6 @@ export function PathwaysScreen({
   error = null,
   isLoading = false,
   onContinue,
-  onDownloadPdf,
   onSelectPathway,
   pathways,
   rawPathwaysText = '',
@@ -165,9 +149,10 @@ export function PathwaysScreen({
   const expandedPathway =
     expandedPathwayIndex === null ? null : (pathways[expandedPathwayIndex] ?? null)
   const hasPathwayCards = pathways.length > 0
+  const hasSelectedPathway = selectedPathwayTitle !== null
 
   async function handleContinue() {
-    if (isLoading) {
+    if (isLoading || !hasSelectedPathway) {
       return
     }
 
@@ -231,13 +216,12 @@ export function PathwaysScreen({
               <RawFallback text={rawPathwaysText} />
             )}
 
-            <DownloadButton onDownloadPdf={onDownloadPdf} />
-            <p className="absolute left-[75px] top-[592px] m-0 w-[222px] text-left text-[11px] font-light leading-none tracking-[-0.44px] text-[#294744]">
-              {downloadNotice}
+            <p className="absolute left-1/2 top-[574px] m-0 w-[420px] -translate-x-1/2 text-center text-[17px] font-light leading-none tracking-[-0.68px] text-[#294744]">
+              {selectionPrompt}
             </p>
-            <div className="absolute left-[390px] top-[598px]">
+            <div className="absolute left-1/2 top-[608px] -translate-x-1/2">
               <OnboardingButton
-                disabled={isLoading}
+                disabled={isLoading || !hasSelectedPathway}
                 label="Continue"
                 onClick={() => {
                   void handleContinue()

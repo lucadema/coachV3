@@ -86,7 +86,6 @@ export function MobileExperience({ flow }: MobileExperienceProps) {
         error={flow.frontendError}
         isLoading={flow.isSubmittingProblem}
         onContinue={flow.handlePathwaysContinue}
-        onDownloadPdf={flow.handleDownloadPathwaysPdf}
         onSelectPathway={flow.handleSelectedPathwayChange}
         pathways={flow.pathways}
         rawPathwaysText={flow.pathwaysText}
@@ -117,5 +116,10 @@ export function MobileExperience({ flow }: MobileExperienceProps) {
     )
   }
 
-  return <MobileClosedScreen onStartNewSession={flow.handleStartNewSession} />
+  return (
+    <MobileClosedScreen
+      onDownloadPdf={flow.handleDownloadPathwaysPdf}
+      onStartNewSession={flow.handleStartNewSession}
+    />
+  )
 }

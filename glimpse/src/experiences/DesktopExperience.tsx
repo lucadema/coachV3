@@ -88,7 +88,6 @@ export function DesktopExperience({ flow }: DesktopExperienceProps) {
         error={flow.frontendError}
         isLoading={flow.isSubmittingProblem}
         onContinue={flow.handlePathwaysContinue}
-        onDownloadPdf={flow.handleDownloadPathwaysPdf}
         onSelectPathway={flow.handleSelectedPathwayChange}
         pathways={flow.pathways}
         rawPathwaysText={flow.pathwaysText}
@@ -120,7 +119,12 @@ export function DesktopExperience({ flow }: DesktopExperienceProps) {
   }
 
   if (flow.step === 'closed') {
-    return <ClosedScreen onStartNewSession={flow.handleStartNewSession} />
+    return (
+      <ClosedScreen
+        onDownloadPdf={flow.handleDownloadPathwaysPdf}
+        onStartNewSession={flow.handleStartNewSession}
+      />
+    )
   }
 
   if (flow.step === 'backend_response') {

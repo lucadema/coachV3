@@ -25,7 +25,6 @@ function renderScreen(overrides: Partial<Parameters<typeof PathwaysScreen>[0]> =
   return render(
     <PathwaysScreen
       onContinue={vi.fn()}
-      onDownloadPdf={vi.fn()}
       pathways={pathways}
       rawPathwaysText="## Build the evidence first"
       {...overrides}
@@ -78,31 +77,25 @@ describe('PathwaysScreen', () => {
     expect(onContinue).not.toHaveBeenCalled()
   })
 
-  it('calls onDownloadPdf when the download button is clicked', async () => {
-    const user = userEvent.setup()
-    const onDownloadPdf = vi.fn()
-    renderScreen({ onDownloadPdf })
+  it('does not render PDF download controls on the pathway selection screen', () => {
+    renderScreen()
 
-    await user.click(screen.getByRole('button', { name: /download session pdf/i }))
-
-    expect(onDownloadPdf).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /download session pdf/i })).toBeNull()
   })
 
-  it('does not trigger PDF generation when expanding or closing a pathway', async () => {
-    const user = userEvent.setup()
-    const onDownloadPdf = vi.fn()
-    renderScreen({ onDownloadPdf })
+  it('asks the user to heart a pathway before continuing', () => {
+    renderScreen()
 
-    await user.click(screen.getByRole('button', { name: /expand build the evidence first/i }))
-    await user.click(screen.getByRole('button', { name: /close expanded pathway/i }))
-
-    expect(onDownloadPdf).not.toHaveBeenCalled()
+    expect(screen.getByText('To continue, please heart your most preferred option.')).toBeTruthy()
+    expect((screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
   })
 
-  it('calls onContinue when Continue is clicked', async () => {
+  it('calls onContinue when Continue is clicked after a pathway is selected', async () => {
     const user = userEvent.setup()
     const onContinue = vi.fn()
-    renderScreen({ onContinue })
+    renderScreen({ onContinue, selectedPathwayTitle: 'Build the evidence first' })
 
     await user.click(screen.getByRole('button', { name: /continue/i }))
 

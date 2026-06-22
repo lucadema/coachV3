@@ -7,14 +7,13 @@ import {
   MobilePrimaryIcon,
   MobileWatermark,
 } from './MobilePrimitives'
-import { CloseIcon, DownloadIcon, ExpandIcon, HeartIcon } from '../../components/onboarding/UiIcons'
+import { CloseIcon, ExpandIcon, HeartIcon } from '../../components/onboarding/UiIcons'
 import type { PathwayCard } from '../../types/session'
 
 type MobilePathwaysScreenProps = {
   error?: string | null
   isLoading?: boolean
   onContinue: () => void | Promise<void>
-  onDownloadPdf: () => void
   onSelectPathway?: (pathway: PathwayCard) => void
   pathways: PathwayCard[]
   rawPathwaysText?: string
@@ -24,8 +23,7 @@ type MobilePathwaysScreenProps = {
 const introText =
   'Based on everything we have explored, here are the resolution pathways available to you. Each one represents a distinct decision. Expand each resolution pathway for more details.'
 
-const downloadNotice =
-  'You’re welcome to keep your problem statement and resolution pathways from this session. The download does not include the coaching conversation that produced them.'
+const selectionPrompt = 'To continue, please heart your most preferred option.'
 
 function MobileExpandedPathwayBody({ body }: { body: string }) {
   const sectionMatch = body.match(/Orientation:\s*([\s\S]*?)(?:\n\s*)?Conditions:\s*([\s\S]*)/i)
@@ -54,7 +52,6 @@ export function MobilePathwaysScreen({
   error = null,
   isLoading = false,
   onContinue,
-  onDownloadPdf,
   onSelectPathway,
   pathways,
   rawPathwaysText = '',
@@ -63,6 +60,7 @@ export function MobilePathwaysScreen({
   const [expandedPathwayIndex, setExpandedPathwayIndex] = useState<number | null>(null)
   const expandedPathway =
     expandedPathwayIndex === null ? null : (pathways[expandedPathwayIndex] ?? null)
+  const hasSelectedPathway = selectedPathwayTitle !== null
 
   return (
     <MobileFrame label="Aether Glimpse mobile pathways">
@@ -145,25 +143,21 @@ export function MobilePathwaysScreen({
                   </div>
                 ))}
             </div>
-            <button
-              type="button"
-              aria-label="Download session PDF"
-              onClick={onDownloadPdf}
-              className="absolute left-[53px] top-[613px] flex size-[24px] items-center justify-center rounded-[8px] border-[1.5px] border-[#dbec03] text-[#75b83b]"
-            >
-              <DownloadIcon className="size-[16px]" />
-            </button>
-            <p className="absolute left-[84px] top-[614px] m-0 w-[223px] text-left text-[11px] font-light leading-none tracking-[-0.44px]">
-              {downloadNotice}
+            <p className="absolute left-[41px] top-[632px] m-0 w-[272px] text-center text-[14px] font-light leading-none tracking-[-0.56px]">
+              {selectionPrompt}
             </p>
           </>
         )}
       </MobileFullCard>
       {expandedPathway ? null : (
         <MobileButton
-          disabled={isLoading}
+          disabled={isLoading || !hasSelectedPathway}
           label="Continue"
           onClick={() => {
+            if (!hasSelectedPathway) {
+              return
+            }
+
             void onContinue()
           }}
         />

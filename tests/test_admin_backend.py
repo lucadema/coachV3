@@ -5,7 +5,8 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from admin_backend.app import app
-from admin_backend.config import AdminSettings
+from admin_backend.config import AdminSettings, get_settings
+from admin_backend.errors import AdminConfigurationError
 from admin_backend.models import (
     EnterpriseCreate,
     EnterpriseUpdate,
@@ -190,6 +191,26 @@ def make_settings() -> AdminSettings:
     )
 
 
+class AdminConfigTests(unittest.TestCase):
+    def test_get_settings_reads_glimpse_url_template_from_environment(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "ADMIN_ENVIRONMENT": "production",
+                "GLIMPSE_ACCESS_URL_TEMPLATE": "https://glimpse.intheaether.io/?t={token}",
+                "DASHBOARD_ACCESS_URL_TEMPLATE": "https://dashboard.intheaether.io/?t={token}",
+            },
+            clear=False,
+        ):
+            settings = get_settings()
+
+        self.assertEqual(
+            settings.glimpse_access_url_template,
+            "https://glimpse.intheaether.io/?t={token}",
+        )
+        self.assertTrue(settings.require_configured_url_templates)
+
+
 class AdminServiceBehaviourTests(unittest.TestCase):
     def setUp(self) -> None:
         self.repository = InMemoryAdminRepository()
@@ -236,6 +257,23 @@ class AdminServiceBehaviourTests(unittest.TestCase):
         self.assertEqual(dashboard_link.token_type, TokenType.DASHBOARD)
         self.assertIn("https://dashboard.example/view?t=", dashboard_link.full_access_link or "")
         self.assertNotEqual(glimpse_link.token_prefix, dashboard_link.token_prefix)
+
+    def test_render_runtime_rejects_localhost_link_templates(self) -> None:
+        service = AdminService(
+            self.repository,
+            AdminSettings(
+                database_url="postgresql://example",
+                admin_api_token="test-admin-token",
+                environment_name="production",
+                glimpse_access_url_template="http://localhost:5173/?t={token}",
+                dashboard_access_url_template="https://dashboard.example/view?t={token}",
+                cors_allow_origins=("https://admin.example",),
+                require_configured_url_templates=True,
+            ),
+        )
+
+        with self.assertRaisesRegex(AdminConfigurationError, "GLIMPSE_ACCESS_URL_TEMPLATE"):
+            service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)
 
     def test_token_validation_enforces_type(self) -> None:
         link = self.service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)

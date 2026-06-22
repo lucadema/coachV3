@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from admin_backend.errors import AdminConfigurationError, AdminConflictError, AdminNotFoundError
 from admin_backend.models import (
     AccessLinkView,
+    DashboardResponse,
     DeleteResponse,
     EnterpriseCreate,
     EnterpriseUpdate,
@@ -284,5 +285,16 @@ def validate_access_token(
 ) -> TokenValidationResponse:
     try:
         return service.validate_token(payload.token, payload.token_type)
+    except Exception as exc:
+        _raise_http_error(exc)
+
+
+@router.get("/dashboard/{token}", response_model=DashboardResponse)
+def get_dashboard_data(
+    token: str,
+    service: AdminService = Depends(get_service),
+) -> DashboardResponse:
+    try:
+        return service.get_dashboard_data(token)
     except Exception as exc:
         _raise_http_error(exc)

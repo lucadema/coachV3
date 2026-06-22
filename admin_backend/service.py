@@ -10,9 +10,16 @@ from typing import Any
 from urllib.parse import quote
 
 from admin_backend.config import AdminSettings, get_settings
+from admin_backend.dashboard import (
+    ENGAGEMENT_SIGNAL_LABELS,
+    PROBLEM_CATEGORY_LABELS,
+    build_count_buckets,
+    calculate_value_inputs,
+)
 from admin_backend.errors import AdminConfigurationError, AdminConflictError, AdminNotFoundError
 from admin_backend.models import (
     AccessLinkView,
+    DashboardResponse,
     EnterpriseCreate,
     EnterpriseUpdate,
     EnterpriseView,
@@ -30,6 +37,7 @@ from admin_backend.repository import AdminPostgresRepository
 
 TOKEN_BYTES = 32
 TOKEN_PREFIX_LENGTH = 8
+AVAILABLE_DASHBOARD_PILOT_STATUSES = {PilotStatus.ACTIVE, PilotStatus.PAUSED}
 
 
 def hash_access_token(token: str) -> str:
@@ -262,6 +270,55 @@ class AdminService:
             link_statuses={link.token_type: link.status for link in links},
         )
 
+    def get_dashboard_data(self, token: str) -> DashboardResponse:
+        token_value = token.strip()
+        if not token_value:
+            return _unavailable_dashboard()
+
+        row = self.repository.find_dashboard_token_context(hash_access_token(token_value))
+        if row is None:
+            return _unavailable_dashboard()
+
+        try:
+            token_status = TokenStatus(str(row["token_status"]))
+        except ValueError:
+            return _unavailable_dashboard()
+        if token_status != TokenStatus.ACTIVE:
+            return _unavailable_dashboard()
+
+        if _is_expired(row.get("token_expires_at")):
+            return _unavailable_dashboard()
+
+        try:
+            pilot_status = PilotStatus(str(row["pilot_status"]))
+        except ValueError:
+            return _unavailable_dashboard()
+        if pilot_status not in AVAILABLE_DASHBOARD_PILOT_STATUSES:
+            return _unavailable_dashboard()
+
+        pilot_id = str(row["pilot_id"])
+        self.repository.mark_token_used(str(row["token_id"]))
+
+        problem_counts = self.repository.get_problem_category_counts(pilot_id)
+        engagement_counts = self.repository.get_engagement_signal_counts(pilot_id)
+        feedback_responses = self.repository.list_feedback_responses_for_pilot(pilot_id)
+
+        return DashboardResponse(
+            available=True,
+            enterprise_name=str(row["enterprise_name"]),
+            pilot_name=str(row["pilot_name"]),
+            pilot_status=pilot_status,
+            problem_categories=build_count_buckets(
+                problem_counts,
+                PROBLEM_CATEGORY_LABELS,
+            ),
+            engagement_signals=build_count_buckets(
+                engagement_counts,
+                ENGAGEMENT_SIGNAL_LABELS,
+            ),
+            value_unlocked=calculate_value_inputs(feedback_responses),
+        )
+
     def _create_link(self, *, pilot_id: str, token_type: TokenType) -> AccessLinkView:
         token = generate_access_token_value()
         row = self.repository.create_access_token(
@@ -307,9 +364,45 @@ class AdminService:
             if token_type == TokenType.GLIMPSE_APP
             else self.settings.dashboard_access_url_template
         )
+        if self.settings.require_configured_url_templates and _is_local_url_template(template):
+            env_var_name = (
+                "GLIMPSE_ACCESS_URL_TEMPLATE"
+                if token_type == TokenType.GLIMPSE_APP
+                else "DASHBOARD_ACCESS_URL_TEMPLATE"
+            )
+            raise AdminConfigurationError(
+                f"{env_var_name} must be configured for {self.settings.environment_name}."
+            )
         if "{token}" not in template:
             raise AdminConfigurationError(
                 f"{token_type.value} access URL template must include {{token}}."
             )
 
         return template.replace("{token}", quote(token, safe=""))
+
+
+def _is_local_url_template(template: str) -> bool:
+    normalized = template.strip().lower()
+    return (
+        normalized.startswith("http://localhost")
+        or normalized.startswith("http://127.0.0.1")
+        or normalized.startswith("http://0.0.0.0")
+    )
+
+
+def _is_expired(expires_at: Any) -> bool:
+    if expires_at is None:
+        return False
+
+    if not isinstance(expires_at, datetime):
+        return False
+
+    comparable = expires_at
+    if comparable.tzinfo is None:
+        comparable = comparable.replace(tzinfo=timezone.utc)
+
+    return comparable <= datetime.now(timezone.utc)
+
+
+def _unavailable_dashboard() -> DashboardResponse:
+    return DashboardResponse(available=False)

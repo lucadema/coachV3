@@ -320,6 +320,69 @@ class AdminPostgresRepository:
             (token_hash,),
         )
 
+    def find_dashboard_token_context(self, token_hash: str) -> dict[str, Any] | None:
+        return self._fetch_one(
+            """
+            SELECT
+                tokens.id AS token_id,
+                tokens.pilot_id AS pilot_id,
+                tokens.status AS token_status,
+                tokens.expires_at AS token_expires_at,
+                pilots.name AS pilot_name,
+                pilots.status AS pilot_status,
+                enterprises.name AS enterprise_name
+            FROM admin_access_tokens AS tokens
+            JOIN admin_pilots AS pilots
+              ON pilots.id = tokens.pilot_id
+            JOIN admin_enterprises AS enterprises
+              ON enterprises.id = pilots.enterprise_id
+            WHERE tokens.token_hash = %s
+              AND tokens.token_type = 'dashboard'
+            LIMIT 1
+            """,
+            (token_hash,),
+        )
+
+    def get_problem_category_counts(self, pilot_id: str) -> dict[str, int]:
+        rows = self._fetch_all(
+            """
+            SELECT problem_category AS value, COUNT(*)::integer AS count
+            FROM coach_sessions
+            WHERE pilot_id = %s
+              AND problem_category IS NOT NULL
+              AND problem_category <> ''
+            GROUP BY problem_category
+            """,
+            (pilot_id,),
+        )
+        return {str(row["value"]): int(row["count"] or 0) for row in rows}
+
+    def get_engagement_signal_counts(self, pilot_id: str) -> dict[str, int]:
+        rows = self._fetch_all(
+            """
+            SELECT engagement_signal AS value, COUNT(*)::integer AS count
+            FROM coach_sessions
+            WHERE pilot_id = %s
+              AND engagement_signal IS NOT NULL
+              AND engagement_signal <> ''
+            GROUP BY engagement_signal
+            """,
+            (pilot_id,),
+        )
+        return {str(row["value"]): int(row["count"] or 0) for row in rows}
+
+    def list_feedback_responses_for_pilot(self, pilot_id: str) -> list[Any]:
+        rows = self._fetch_all(
+            """
+            SELECT feedback_responses
+            FROM coach_sessions
+            WHERE pilot_id = %s
+              AND feedback_responses IS NOT NULL
+            """,
+            (pilot_id,),
+        )
+        return [row.get("feedback_responses") for row in rows]
+
     def revoke_access_token(self, token_id: str) -> dict[str, Any] | None:
         return self._fetch_one(
             f"""

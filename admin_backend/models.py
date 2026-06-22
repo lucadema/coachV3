@@ -119,6 +119,30 @@ class TokenValidationResponse(BaseModel):
     reason: str | None = None
 
 
+class DashboardCountBucket(BaseModel):
+    value: str
+    label: str
+    count: int = 0
+
+
+class DashboardValueInputs(BaseModel):
+    monthly_minutes: float = 0.0
+    qualifying_responses_count: int = 0
+    flag_to_organisation: dict[str, int] = Field(
+        default_factory=lambda: {"yes_count": 0, "no_count": 0}
+    )
+
+
+class DashboardResponse(BaseModel):
+    available: bool
+    enterprise_name: str | None = None
+    pilot_name: str | None = None
+    pilot_status: PilotStatus | None = None
+    problem_categories: list[DashboardCountBucket] = Field(default_factory=list)
+    engagement_signals: list[DashboardCountBucket] = Field(default_factory=list)
+    value_unlocked: DashboardValueInputs = Field(default_factory=DashboardValueInputs)
+
+
 class DeleteResponse(BaseModel):
     status: str = "deleted"
     id: str
