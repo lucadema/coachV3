@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CoachApiError,
+  getFeedbackForm,
   initialiseSession,
   recordSessionEvent,
   sendUserMessage,
+  submitFeedback,
 } from './coachClient'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -163,36 +165,51 @@ describe('coachClient', () => {
     )
   })
 
-  it('records feedback telemetry events', async () => {
+  it('loads the active feedback form', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        show_feedback: true,
+        feedback_pack_id: 'glimpse_default',
+        survey_query: 'Would you be happy to answer a few quick questions?',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getFeedbackForm('session-1', { baseUrl: 'http://api.test' })).resolves.toMatchObject({
+      survey_query: 'Would you be happy to answer a few quick questions?',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/coach/v2/feedback-form?session_id=session-1',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    )
+  })
+
+  it('submits configurable feedback responses', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ status: 'ok' }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await recordSessionEvent(
+    await submitFeedback(
       'session-1',
+      'glimpse_default',
       {
-        event: 'feedback_submitted',
-        feedback: {
-          helpedThinkDifferently: true,
-          organisationalBenefit: false,
-          valuableMoments: ['Receiving structured pathways rather than a generic answer'],
-        },
+        helped_think_differently: true,
+        valuable_moments: ['structured_pathways'],
       },
       { baseUrl: 'http://api.test' },
     )
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/telemetry/session_event',
+      'http://api.test/coach/v2/feedback',
       expect.objectContaining({
         body: JSON.stringify({
           session_id: 'session-1',
-          event: 'feedback_submitted',
-          answer_1: true,
-          answer_2: false,
-          dropdown_values: ['Receiving structured pathways rather than a generic answer'],
-          payload: {
-            answer_1: true,
-            answer_2: false,
-            dropdown_values: ['Receiving structured pathways rather than a generic answer'],
+          feedback_pack_id: 'glimpse_default',
+          responses: {
+            helped_think_differently: true,
+            valuable_moments: ['structured_pathways'],
           },
         }),
         method: 'POST',

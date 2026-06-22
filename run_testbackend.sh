@@ -6,7 +6,7 @@ echo "Activating virtual environment..."
 source venv/bin/activate
 
 echo "Starting FastAPI TEST backend..."
-uvicorn backend_test.main:app --reload --port 8001
+uvicorn backend_test.main:app --reload --port 8000
 BACKEND_PID=$!
 
 cleanup() {

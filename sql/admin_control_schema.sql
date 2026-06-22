@@ -29,10 +29,14 @@ CREATE TABLE IF NOT EXISTS admin_pilots (
     start_at TIMESTAMPTZ NULL,
     end_at TIMESTAMPTZ NULL,
     notes TEXT NOT NULL DEFAULT '',
+    feedback_pack_id TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CHECK (end_at IS NULL OR start_at IS NULL OR end_at >= start_at)
 );
+
+ALTER TABLE admin_pilots
+ADD COLUMN IF NOT EXISTS feedback_pack_id TEXT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_admin_pilots_enterprise_id
 ON admin_pilots (enterprise_id);

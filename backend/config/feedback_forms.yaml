@@ -1,0 +1,107 @@
+default_feedback_pack_id: glimpse_default
+
+feedback_packs:
+
+  glimpse_default:
+    label: Default Glimpse feedback
+    title: Thank you. Answering a few quick questions about your experience will influence how we develop Aether.
+    survey_query: Want to briefly tell us what you thought about the experience?
+    description: null
+    questions:
+    - id: helped_think_differently
+      type: boolean
+      text: Did Aether help you think about your challenge in a new way?
+      required: false
+      true_label: 'YES'
+      false_label: 'NO'
+    - id: valuable_moments
+      type: multi_select
+      text: Which moment in this session felt most valuable to you?
+      required: false
+      placeholder: CHOOSE ALL OPTIONS THAT APPLY
+      options:
+      - value: being_asked_a_question
+        label: Being asked a question I hadn’t thought to ask myself
+      - value: breadth_restatement
+        label: Seeing the breadth of the problem restated clearly and accurately
+      - value: relevant_resolutions
+        label: Receiving relevant resolutions rather than a generic answer
+      - value: guided_not_told
+        label: The feeling that I was being guided rather than just given information
+      - value: confidential_space
+        label: Having a confidential space to think without judgement
+      - value: reflective_discussion_focus
+        label: How reflective discussion helped me focus on what mattered
+    - id: use_again_likelihood
+      type: likert_1_5
+      text: How likely are you to use Aether again if it were available to you at work? (5 being the most likely)
+      required: false
+    - id: valuable_to_others
+      type: single_select
+      text: Could you see Aether being valuable to others in your organisation?
+      required: false
+      options:
+      - value: 'yes'
+        label: 'YES'
+      - value: 'no'
+        label: 'NO'
+      - value: not_sure
+        label: NOT SURE
+    - id: personal_takeaway
+      type: free_text
+      text: In your own words, what did you personally take from this experience?
+      required: false
+      placeholder: Your response here...
+
+  pilot_impact_questions:
+    label: Pilot impact questions
+    title: Your answers to a few questions about this resolution pathway will help size the impact.
+    survey_query: Want to briefly size up the impact of your chosen resolution pathway?
+    description: ''
+    questions:
+    - id: weekly_time_saved
+      type: single_select
+      text: If resolved in this way, how much time will be saved weekly?
+      required: true
+      placeholder: CHOOSE AN OPTION
+      options:
+      - value: few_minutes
+        label: A few minutes
+        numeric_value: 5
+      - value: up_to_60_minutes
+        label: Up to 60 minutes
+        numeric_value: 30
+      - value: more_than_an_hour
+        label: More than an hour
+        numeric_value: 90
+      - value: many_hours
+        label: Many hours
+        numeric_value: 240
+      - value: not_sure_or_not_applicable
+        label: Not sure / Not applicable
+    - id: people_who_would_benefit
+      type: single_select
+      text: And how many people would benefit, including yourself?
+      required: true
+      placeholder: CHOOSE AN OPTION
+      options:
+      - value: only_me
+        label: Only me
+        numeric_value: 1
+      - value: me_and_1_to_10_others
+        label: Me & 1 - 10 others
+        numeric_value: 6
+      - value: me_and_11_to_20_others
+        label: Me & 11 - 20 others
+        numeric_value: 16
+      - value: me_and_21_plus_others
+        label: Me & 21+ others
+        numeric_value: 25
+      - value: not_sure_or_not_applicable
+        label: Not sure / Not applicable
+    - id: flag_to_organisation
+      type: boolean
+      text: Lastly – should this be flagged to your organisation as something worth acting on?
+      required: true
+      true_label: 'YES'
+      false_label: 'NO'

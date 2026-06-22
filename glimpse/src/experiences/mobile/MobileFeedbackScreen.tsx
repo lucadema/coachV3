@@ -1,174 +1,46 @@
-import { useState } from 'react'
-import {
-  MobileButton,
-  MobileFrame,
-  MobileFullCard,
-  MobilePrimaryIcon,
-  MobileSelectionDot,
-  MobileWatermark,
-} from './MobilePrimitives'
-import {
-  type FeedbackState,
-  type ValuableMomentOption,
-  valuableMomentOptions,
-} from '../../types/feedback'
-import { ChevronIcon } from '../../components/onboarding/UiIcons'
+import { MobileButton, MobileFrame, MobileFullCard, MobilePrimaryIcon, MobileWatermark } from './MobilePrimitives'
+import { FeedbackForm } from '../../features/feedback/FeedbackForm'
+import type { FeedbackFormConfig, FeedbackState } from '../../types/feedback'
 
 type MobileFeedbackScreenProps = {
   feedback: FeedbackState
+  form: FeedbackFormConfig | null
   onChange: (feedback: FeedbackState) => void
   onClose: (feedback: FeedbackState) => void
 }
 
 export function MobileFeedbackScreen({
   feedback,
+  form,
   onChange,
   onClose,
 }: MobileFeedbackScreenProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-
-  function setBoolean(name: 'helpedThinkDifferently' | 'organisationalBenefit', value: boolean) {
-    onChange({ ...feedback, [name]: value })
-  }
-
-  function toggleOption(option: ValuableMomentOption) {
-    const isSelected = feedback.valuableMoments.includes(option)
-    onChange({
-      ...feedback,
-      valuableMoments: isSelected
-        ? feedback.valuableMoments.filter((selectedOption) => selectedOption !== option)
-        : [...feedback.valuableMoments, option],
-    })
-  }
+  const title =
+    form?.title ?? 'Before you go, please tell us what you thought of the Aether Glimpse experience.'
 
   return (
     <MobileFrame label="Aether Glimpse mobile survey">
       <MobileWatermark />
       <MobileFullCard>
         <MobilePrimaryIcon variant="aether" />
-        <p className="absolute left-[22px] top-[92px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
+        <p className="absolute inset-x-[22px] top-[92px] m-0 text-center text-[16px] font-medium leading-none tracking-[-0.64px] break-words">
           Thank you. We’ve now completed the session. You’ve clarified the core tension well, and have several resolution pathways you can action.
         </p>
-        <p className="absolute left-[22px] top-[176px] m-0 w-[310px] text-center text-[16px] font-medium leading-none tracking-[-0.64px]">
-          Before you go, please tell us what you thought of the Aether Glimpse experience.
+        <p className="absolute inset-x-[22px] top-[176px] m-0 text-center text-[16px] font-medium leading-none tracking-[-0.64px] break-words">
+          {title}
         </p>
-        <SurveyQuestion
-          noLabel="No, Aether did not help me think about my challenge in a new way"
-          onNo={() => {
-            setBoolean('helpedThinkDifferently', false)
-          }}
-          onYes={() => {
-            setBoolean('helpedThinkDifferently', true)
-          }}
-          question="Did Aether help you think about your challenge in a new way?"
-          top={266}
-          value={feedback.helpedThinkDifferently}
-          yesLabel="Yes, Aether helped me think about my challenge in a new way"
-        />
-        <SurveyQuestion
-          noLabel="No, I cannot see organisational benefit"
-          onNo={() => {
-            setBoolean('organisationalBenefit', false)
-          }}
-          onYes={() => {
-            setBoolean('organisationalBenefit', true)
-          }}
-          question="Can you see how access to this kind of thinking support could be benefical to a whole organisation"
-          top={378}
-          value={feedback.organisationalBenefit}
-          yesLabel="Yes, I can see organisational benefit"
-        />
-        <p className="absolute left-[22px] top-[474px] m-0 w-[310px] text-center text-[16px] font-light leading-none tracking-[-0.64px]">
-          What was the most valuable moment in this session for you?
-        </p>
-        <div
-          className={[
-            'absolute left-[22px] top-[528px] z-20 w-[310px] overflow-hidden rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]',
-            isDropdownOpen ? 'h-[218px]' : 'h-[42px]',
-          ].join(' ')}
-        >
-          <button
-            type="button"
-            aria-expanded={isDropdownOpen}
-            aria-label="Choose all options that apply"
-            onClick={() => {
-              setIsDropdownOpen((currentValue) => !currentValue)
-            }}
-            className="relative h-[42px] w-full text-center text-[13px] font-normal leading-none"
-          >
-            CHOOSE ALL OPTIONS THAT APPLY
-            <span className="absolute right-[10px] top-[10px] flex size-[22px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] text-[#75b83b]">
-              <ChevronIcon direction={isDropdownOpen ? 'up' : 'down'} />
-            </span>
-          </button>
-          {isDropdownOpen ? (
-            <div className="max-h-[166px] overflow-y-auto px-[14px] pb-[10px]">
-              {valuableMomentOptions.map((option) => {
-                const isSelected = feedback.valuableMoments.includes(option)
-
-                return (
-                  <button
-                    type="button"
-                    key={option}
-                    aria-pressed={isSelected}
-                    onClick={() => {
-                      toggleOption(option)
-                    }}
-                    className="mt-[8px] flex items-center gap-[8px] text-left text-[11px] leading-tight"
-                  >
-                    <MobileSelectionDot selected={isSelected} />
-                    <span>{option}</span>
-                  </button>
-                )
-              })}
-            </div>
+        <div className="absolute inset-x-[22px] top-[266px] flex max-h-[360px] min-w-0 flex-col gap-[46px] overflow-x-hidden overflow-y-auto pb-[16px] text-[#294744] [&_.feedback-question:nth-child(3)]:mt-[-10px]">
+          {form?.show_feedback ? (
+            <FeedbackForm feedback={feedback} form={form} onChange={onChange} />
           ) : null}
         </div>
       </MobileFullCard>
-      {isDropdownOpen ? null : (
-        <MobileButton
-          label="Close"
-          onClick={() => {
-            onClose(feedback)
-          }}
-        />
-      )}
+      <MobileButton
+        label="Continue"
+        onClick={() => {
+          onClose(feedback)
+        }}
+      />
     </MobileFrame>
-  )
-}
-
-function SurveyQuestion({
-  noLabel,
-  onNo,
-  onYes,
-  question,
-  top,
-  value,
-  yesLabel,
-}: {
-  noLabel: string
-  onNo: () => void
-  onYes: () => void
-  question: string
-  top: number
-  value: boolean | null
-  yesLabel: string
-}) {
-  return (
-    <fieldset className="absolute left-[22px] m-0 w-[310px] border-0 p-0 text-center" style={{ top }}>
-      <legend className="m-0 w-full text-[16px] font-light leading-none tracking-[-0.64px]">
-        {question}
-      </legend>
-      <div className="mt-[13px] flex justify-center gap-[48px] text-[13px]">
-        <button type="button" aria-pressed={value === true} aria-label={yesLabel} onClick={onYes} className="flex items-center gap-[8px]">
-          <MobileSelectionDot selected={value === true} />
-          YES
-        </button>
-        <button type="button" aria-pressed={value === false} aria-label={noLabel} onClick={onNo} className="flex items-center gap-[8px]">
-          <MobileSelectionDot selected={value === false} />
-          NO
-        </button>
-      </div>
-    </fieldset>
   )
 }

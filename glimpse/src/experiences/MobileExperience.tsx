@@ -1,4 +1,5 @@
 import { MobileClosedScreen } from './mobile/MobileClosedScreen'
+import { MobileFeedbackQueryScreen } from './mobile/MobileFeedbackQueryScreen'
 import { MobileFeedbackScreen } from './mobile/MobileFeedbackScreen'
 import { MobileInformationScreen } from './mobile/MobileInformationScreen'
 import { MobileLaunchScreen } from './mobile/MobileLaunchScreen'
@@ -86,8 +87,21 @@ export function MobileExperience({ flow }: MobileExperienceProps) {
         isLoading={flow.isSubmittingProblem}
         onContinue={flow.handlePathwaysContinue}
         onDownloadPdf={flow.handleDownloadPathwaysPdf}
+        onSelectPathway={flow.handleSelectedPathwayChange}
         pathways={flow.pathways}
         rawPathwaysText={flow.pathwaysText}
+        selectedPathwayTitle={flow.selectedPathwayTitle}
+      />
+    )
+  }
+
+  if (flow.step === 'feedback_query') {
+    return (
+      <MobileFeedbackQueryScreen
+        form={flow.feedbackForm}
+        onSkip={flow.handleFeedbackQuerySkip}
+        onTakeSurvey={flow.handleFeedbackQueryAccept}
+        selectedPathway={flow.selectedPathway}
       />
     )
   }
@@ -96,6 +110,7 @@ export function MobileExperience({ flow }: MobileExperienceProps) {
     return (
       <MobileFeedbackScreen
         feedback={flow.feedback}
+        form={flow.feedbackForm}
         onChange={flow.setFeedback}
         onClose={flow.handleFeedbackClose}
       />

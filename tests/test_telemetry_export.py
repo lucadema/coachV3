@@ -68,13 +68,13 @@ class TelemetryExportWorkbookTests(unittest.TestCase):
             [
                 SheetData(
                     name="Sessions",
-                    columns=["id", "app_session_id", "created_at", "feedback_payload"],
+                    columns=["id", "app_session_id", "created_at", "feedback_responses"],
                     rows=[
                         {
                             "id": 1,
                             "app_session_id": "session-1",
                             "created_at": datetime(2026, 5, 18, tzinfo=timezone.utc),
-                            "feedback_payload": {"safe": True},
+                            "feedback_responses": {"safe": True},
                         }
                     ],
                 ),

@@ -109,6 +109,26 @@ describe('PathwaysScreen', () => {
     expect(onContinue).toHaveBeenCalledTimes(1)
   })
 
+  it('calls onSelectPathway when a pathway is hearted', async () => {
+    const user = userEvent.setup()
+    const onSelectPathway = vi.fn()
+    renderScreen({ onSelectPathway })
+
+    await user.click(screen.getByRole('button', { name: /heart build the evidence first/i }))
+
+    expect(onSelectPathway).toHaveBeenCalledWith(pathways[0])
+  })
+
+  it('shows the selected pathway as hearted', () => {
+    renderScreen({ selectedPathwayTitle: 'Build the evidence first' })
+
+    expect(
+      screen.getByRole('button', { name: /unheart build the evidence first/i }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('true')
+  })
+
   it('disables Continue while loading', () => {
     renderScreen({ isLoading: true })
 

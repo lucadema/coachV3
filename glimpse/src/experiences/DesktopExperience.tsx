@@ -2,6 +2,7 @@ import { BackendResponsePlaceholder } from '../screens/BackendResponsePlaceholde
 import { ClosedScreen } from '../screens/ClosedScreen'
 import { DiscussionScreen } from '../screens/DiscussionScreen'
 import { FeedbackScreen } from '../screens/FeedbackScreen'
+import { FeedbackQueryScreen } from '../screens/FeedbackQueryScreen'
 import { InformationScreen } from '../screens/InformationScreen'
 import { LaunchScreen } from '../screens/LaunchScreen'
 import { OnboardingCompleteScreen } from '../screens/OnboardingCompleteScreen'
@@ -88,8 +89,21 @@ export function DesktopExperience({ flow }: DesktopExperienceProps) {
         isLoading={flow.isSubmittingProblem}
         onContinue={flow.handlePathwaysContinue}
         onDownloadPdf={flow.handleDownloadPathwaysPdf}
+        onSelectPathway={flow.handleSelectedPathwayChange}
         pathways={flow.pathways}
         rawPathwaysText={flow.pathwaysText}
+        selectedPathwayTitle={flow.selectedPathwayTitle}
+      />
+    )
+  }
+
+  if (flow.step === 'feedback_query') {
+    return (
+      <FeedbackQueryScreen
+        form={flow.feedbackForm}
+        onSkip={flow.handleFeedbackQuerySkip}
+        onTakeSurvey={flow.handleFeedbackQueryAccept}
+        selectedPathway={flow.selectedPathway}
       />
     )
   }
@@ -98,6 +112,7 @@ export function DesktopExperience({ flow }: DesktopExperienceProps) {
     return (
       <FeedbackScreen
         feedback={flow.feedback}
+        form={flow.feedbackForm}
         onChange={flow.setFeedback}
         onClose={flow.handleFeedbackClose}
       />

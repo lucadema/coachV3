@@ -19,6 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import telemetry
 from backend.admin.telemetry_export_routes import router as telemetry_export_router
 from backend.controller import get_debug, handle_user_msg, init_session
+from backend.feedback import (
+    FeedbackSubmission,
+    FeedbackValidationError,
+    get_active_feedback_form,
+    store_feedback_submission,
+)
 from backend.models import (
     ClientTelemetryEvent,
     DebugReply,
@@ -118,6 +124,35 @@ def user_message(user_msg: UserMsg) -> UserMsgReply:
     )
 
 
+@app.get("/coach/v2/feedback-form")
+def feedback_form(session_id: str) -> dict:
+    """
+    Return the active feedback form for a session.
+
+    Feedback config failures are handled inside the feedback subsystem and
+    return show_feedback=false rather than breaking the session flow.
+    """
+    try:
+        session = get_debug(session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return get_active_feedback_form(session).model_dump(exclude_none=True)
+
+
+@app.post("/coach/v2/feedback")
+def submit_feedback(submission: FeedbackSubmission) -> dict[str, str]:
+    """Validate and store a configurable feedback submission."""
+    try:
+        store_feedback_submission(submission)
+    except FeedbackValidationError as exc:
+        message = str(exc)
+        status_code = 404 if message == "session_not_found" else 422
+        raise HTTPException(status_code=status_code, detail=message) from exc
+
+    return {"status": "ok"}
+
+
 @app.post("/telemetry/session_event")
 def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
     """
@@ -151,12 +186,16 @@ def session_telemetry_event(event: ClientTelemetryEvent) -> dict[str, str]:
         )
         return {"status": "ok"}
 
+    # Legacy Streamlit compatibility path. New React feedback uses
+    # /coach/v2/feedback and stores YAML-backed response ids.
     telemetry.record_feedback_submitted(
         session_id=session.session_id,
-        answer_1=event.answer_1,
-        answer_2=event.answer_2,
-        dropdown_values=event.dropdown_values,
-        payload=event.payload,
+        feedback_pack_id="legacy_fixed_feedback",
+        feedback_responses={
+            "answer_1": event.answer_1,
+            "answer_2": event.answer_2,
+            "dropdown_values": event.dropdown_values or [],
+        },
         pilot_id=session.pilot_id,
     )
     return {"status": "ok"}

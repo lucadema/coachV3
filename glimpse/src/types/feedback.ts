@@ -1,24 +1,41 @@
-export const valuableMomentOptions = [
-  'Being asked a question I hadn’t thought to ask myself',
-  'The moment Aether reflected my challenge back to me accurately',
-  'Seeing my problem restated clearly in one place',
-  'Receiving structured pathways rather than a generic answer',
-  'The feeling that I was being guided rather than just given information',
-  'Having a confidential space to think without judgement',
-] as const
+export type FeedbackQuestionType =
+  | 'boolean'
+  | 'likert_1_5'
+  | 'single_select'
+  | 'multi_select'
+  | 'short_text'
+  | 'free_text'
 
-export type ValuableMomentOption = (typeof valuableMomentOptions)[number]
-
-export type FeedbackState = {
-  helpedThinkDifferently: boolean | null
-  organisationalBenefit: boolean | null
-  valuableMoments: string[]
+export type FeedbackOption = {
+  value: string
+  label: string
+  numeric_value?: number | null
 }
 
+export type FeedbackQuestion = {
+  id: string
+  type: FeedbackQuestionType
+  text: string
+  required: boolean
+  placeholder?: string | null
+  true_label?: string | null
+  false_label?: string | null
+  options?: FeedbackOption[]
+}
+
+export type FeedbackFormConfig = {
+  show_feedback: boolean
+  feedback_pack_id?: string
+  title?: string
+  survey_query?: string | null
+  description?: string | null
+  questions?: FeedbackQuestion[]
+}
+
+export type FeedbackValue = boolean | number | string | string[] | null
+
+export type FeedbackState = Record<string, FeedbackValue>
+
 export function createDefaultFeedbackState(): FeedbackState {
-  return {
-    helpedThinkDifferently: null,
-    organisationalBenefit: null,
-    valuableMoments: [],
-  }
+  return {}
 }

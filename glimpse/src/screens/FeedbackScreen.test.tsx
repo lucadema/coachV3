@@ -5,7 +5,72 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackScreen } from './FeedbackScreen'
-import { createDefaultFeedbackState, type FeedbackState } from '../types/feedback'
+import {
+  createDefaultFeedbackState,
+  type FeedbackFormConfig,
+  type FeedbackState,
+} from '../types/feedback'
+
+const defaultFeedbackForm: FeedbackFormConfig = {
+  show_feedback: true,
+  feedback_pack_id: 'glimpse_default',
+  title: 'Before you go, please tell us what you thought of the Aether Glimpse experience.',
+  questions: [
+    {
+      id: 'helped_think_differently',
+      type: 'boolean',
+      text: 'Did Aether help you think about your challenge in a new way?',
+      required: false,
+    },
+    {
+      id: 'organisational_benefit',
+      type: 'boolean',
+      text: 'Can you see how access to this kind of thinking support could be benefical to a whole organisation',
+      required: false,
+    },
+    {
+      id: 'pilot_stage',
+      type: 'single_select',
+      text: 'Which stage are you in?',
+      required: false,
+      placeholder: 'CHOOSE AN OPTION',
+      options: [
+        {
+          value: 'exploring',
+          label: 'Exploring the idea',
+        },
+        {
+          value: 'piloting',
+          label: 'Piloting with a group',
+        },
+      ],
+    },
+    {
+      id: 'valuable_moments',
+      type: 'multi_select',
+      text: 'What was the most valuable moment in this session for you?',
+      required: false,
+      options: [
+        {
+          value: 'being_asked_a_question',
+          label: 'Being asked a question I hadn’t thought to ask myself',
+        },
+        {
+          value: 'structured_pathways',
+          label: 'Receiving structured pathways rather than a generic answer',
+        },
+        {
+          value: 'guided_not_told',
+          label: 'The feeling that I was being guided rather than just given information',
+        },
+        {
+          value: 'confidential_space',
+          label: 'Having a confidential space to think without judgement',
+        },
+      ],
+    },
+  ],
+}
 
 afterEach(() => {
   cleanup()
@@ -21,7 +86,14 @@ function FeedbackHarness({
 }) {
   const [feedback, setFeedback] = useState(initialFeedback)
 
-  return <FeedbackScreen feedback={feedback} onChange={setFeedback} onClose={onClose} />
+  return (
+    <FeedbackScreen
+      feedback={feedback}
+      form={defaultFeedbackForm}
+      onChange={setFeedback}
+      onClose={onClose}
+    />
+  )
 }
 
 describe('FeedbackScreen', () => {
@@ -43,10 +115,10 @@ describe('FeedbackScreen', () => {
     render(<FeedbackHarness />)
 
     const yesButton = screen.getByRole('button', {
-      name: /yes, aether helped me think about my challenge/i,
+      name: /yes, did aether help you think/i,
     })
     const noButton = screen.getByRole('button', {
-      name: /no, i cannot see organisational benefit/i,
+      name: /no, can you see how access/i,
     })
 
     await user.click(yesButton)
@@ -68,6 +140,30 @@ describe('FeedbackScreen', () => {
     ).toBeTruthy()
   })
 
+  it('renders single-select options with the shared dropdown treatment', async () => {
+    const user = userEvent.setup()
+    render(<FeedbackHarness />)
+
+    await user.click(screen.getByRole('button', { name: /^choose an option$/i }))
+
+    expect(screen.getByText('Exploring the idea')).toBeTruthy()
+    expect(screen.getByText('Piloting with a group')).toBeTruthy()
+  })
+
+  it('selecting a single-select option updates the local value', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<FeedbackHarness onClose={onClose} />)
+
+    await user.click(screen.getByRole('button', { name: /^choose an option$/i }))
+    await user.click(screen.getByRole('button', { name: /piloting with a group/i }))
+    await user.click(screen.getByRole('button', { name: /^continue$/i }))
+
+    expect(onClose).toHaveBeenCalledWith({
+      pilot_stage: 'piloting',
+    })
+  })
+
   it('selecting multiple valuable moments updates the local list', async () => {
     const user = userEvent.setup()
     render(<FeedbackHarness />)
@@ -87,14 +183,14 @@ describe('FeedbackScreen', () => {
     expect(confidentialOption.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('Close calls onClose with the current feedback data', async () => {
+  it('Continue calls onClose with the current feedback data', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(<FeedbackHarness onClose={onClose} />)
 
     await user.click(
       screen.getByRole('button', {
-        name: /yes, aether helped me think about my challenge/i,
+        name: /yes, did aether help you think/i,
       }),
     )
     await user.click(screen.getByRole('button', { name: /choose all options that apply/i }))
@@ -103,12 +199,11 @@ describe('FeedbackScreen', () => {
         name: /receiving structured pathways rather than a generic answer/i,
       }),
     )
-    await user.click(screen.getByRole('button', { name: /^close$/i }))
+    await user.click(screen.getByRole('button', { name: /^continue$/i }))
 
     expect(onClose).toHaveBeenCalledWith({
-      helpedThinkDifferently: true,
-      organisationalBenefit: null,
-      valuableMoments: ['Receiving structured pathways rather than a generic answer'],
+      helped_think_differently: true,
+      valuable_moments: ['structured_pathways'],
     })
   })
 
@@ -120,7 +215,7 @@ describe('FeedbackScreen', () => {
 
     await user.click(
       screen.getByRole('button', {
-        name: /no, aether did not help me think about my challenge/i,
+        name: /no, did aether help you think/i,
       }),
     )
     await user.click(screen.getByRole('button', { name: /choose all options that apply/i }))
@@ -129,7 +224,7 @@ describe('FeedbackScreen', () => {
         name: /the feeling that i was being guided rather than just given information/i,
       }),
     )
-    await user.click(screen.getByRole('button', { name: /^close$/i }))
+    await user.click(screen.getByRole('button', { name: /^continue$/i }))
 
     expect(fetchMock).not.toHaveBeenCalled()
   })

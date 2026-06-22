@@ -299,7 +299,8 @@ class PostgresTelemetrySink:
             logger.warning("Postgres telemetry skipped feedback_submitted without session_id")
             return None
 
-        feedback_payload = _feedback_payload_json(payload)
+        feedback_responses = _json_or_none(payload.get("feedback_responses") or {})
+        feedback_pack_id = _safe_string(payload.get("feedback_pack_id"))
         pilot_id = _safe_string(payload.get("pilot_id"))
 
         def writer(cursor: Any) -> None:
@@ -308,20 +309,15 @@ class PostgresTelemetrySink:
                 """
                 UPDATE coach_sessions
                 SET
-                    feedback_submitted_at = NOW(),
-                    feedback_answer_1 = %s,
-                    feedback_answer_2 = %s,
-                    feedback_dropdown_values = %s,
-                    feedback_payload = %s::jsonb,
+                    feedback_pack_id = %s,
+                    feedback_responses = %s::jsonb,
                     pilot_id = COALESCE(pilot_id, %s),
                     updated_at = NOW()
                 WHERE app_session_id = %s
                 """,
                 (
-                    _bool_or_none(payload.get("answer_1")),
-                    _bool_or_none(payload.get("answer_2")),
-                    _string_list_or_none(payload.get("dropdown_values")),
-                    feedback_payload,
+                    feedback_pack_id,
+                    feedback_responses,
                     pilot_id,
                     session_id,
                 ),
@@ -452,10 +448,3 @@ def _json_or_none(value: Any) -> str | None:
 
     return json.dumps(value, default=str)
 
-
-def _feedback_payload_json(payload: dict[str, Any]) -> str | None:
-    payload_keys = payload.get("payload_keys")
-    if not payload_keys:
-        return None
-
-    return _json_or_none({"payload_keys": _string_list_or_none(payload_keys)})

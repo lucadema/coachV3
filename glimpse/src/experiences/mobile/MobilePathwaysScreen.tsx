@@ -7,7 +7,7 @@ import {
   MobilePrimaryIcon,
   MobileWatermark,
 } from './MobilePrimitives'
-import { CloseIcon, DownloadIcon, ExpandIcon } from '../../components/onboarding/UiIcons'
+import { CloseIcon, DownloadIcon, ExpandIcon, HeartIcon } from '../../components/onboarding/UiIcons'
 import type { PathwayCard } from '../../types/session'
 
 type MobilePathwaysScreenProps = {
@@ -15,8 +15,10 @@ type MobilePathwaysScreenProps = {
   isLoading?: boolean
   onContinue: () => void | Promise<void>
   onDownloadPdf: () => void
+  onSelectPathway?: (pathway: PathwayCard) => void
   pathways: PathwayCard[]
   rawPathwaysText?: string
+  selectedPathwayTitle?: string | null
 }
 
 const introText =
@@ -53,8 +55,10 @@ export function MobilePathwaysScreen({
   isLoading = false,
   onContinue,
   onDownloadPdf,
+  onSelectPathway,
   pathways,
   rawPathwaysText = '',
+  selectedPathwayTitle = null,
 }: MobilePathwaysScreenProps) {
   const [expandedPathwayIndex, setExpandedPathwayIndex] = useState<number | null>(null)
   const expandedPathway =
@@ -99,6 +103,25 @@ export function MobilePathwaysScreen({
                     key={`${pathway.title}-${index}`}
                     className="relative h-[70px] rounded-[24px] bg-[linear-gradient(90deg,rgba(219,236,3,0.12)_0%,rgba(117,184,59,0.12)_100%)]"
                   >
+                    {pathway.body ? (
+                      <button
+                        type="button"
+                        aria-pressed={selectedPathwayTitle === pathway.title}
+                        aria-label={`${selectedPathwayTitle === pathway.title ? 'Unheart' : 'Heart'} ${pathway.title}`}
+                        disabled={isLoading}
+                        onClick={() => {
+                          onSelectPathway?.(pathway)
+                        }}
+                        className={[
+                          'absolute left-[10px] top-[10px] z-10 flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] disabled:cursor-wait',
+                          selectedPathwayTitle === pathway.title
+                            ? 'text-[#75b83b]'
+                            : 'text-[rgba(41,71,68,0.45)]',
+                        ].join(' ')}
+                      >
+                        <HeartIcon filled={selectedPathwayTitle === pathway.title} />
+                      </button>
+                    ) : null}
                     {pathway.body ? (
                       <button
                         type="button"

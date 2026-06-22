@@ -184,8 +184,15 @@ def main() -> None:
     enterprise = service.create_enterprise(EnterpriseCreate(name="Test Enterprise"))
     check(enterprise.name == "Test Enterprise", "enterprise can be created")
 
-    pilot = service.create_pilot(PilotCreate(enterprise_id=enterprise.id, name="Test Pilot"))
+    pilot = service.create_pilot(
+        PilotCreate(
+            enterprise_id=enterprise.id,
+            name="Test Pilot",
+            feedback_pack_id="glimpse_default",
+        )
+    )
     check(pilot.enterprise_id == enterprise.id, "pilot belongs to enterprise")
+    check(pilot.feedback_pack_id == "glimpse_default", "pilot stores feedback pack id")
 
     glimpse_link = service.generate_link(pilot.id, TokenType.GLIMPSE_APP)
     dashboard_link = service.generate_link(pilot.id, TokenType.DASHBOARD)

@@ -99,3 +99,55 @@ def resolve_glimpse_pilot_id(access_token: str) -> str | None:
                 conn.close()
             except Exception:
                 pass
+
+
+def get_pilot_feedback_pack_id(pilot_id: str) -> str | None:
+    """Return the feedback pack configured for a pilot, if one is set."""
+    database_url = _database_url()
+    if not database_url:
+        logger.warning("Pilot feedback pack lookup requested without a database URL.")
+        return None
+
+    conn = None
+    try:
+        conn = _connect(database_url)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT feedback_pack_id
+                FROM admin_pilots
+                WHERE id = %s
+                LIMIT 1
+                """,
+                (pilot_id,),
+            )
+            row = cursor.fetchone()
+            conn.commit()
+            if row is None:
+                return None
+
+            feedback_pack_id = row.get("feedback_pack_id")
+            if not isinstance(feedback_pack_id, str):
+                return None
+
+            stripped_pack_id = feedback_pack_id.strip()
+            return stripped_pack_id or None
+    except Exception as exc:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        logger.warning(
+            "Pilot feedback pack lookup failed pilot_id=%s error_type=%s error=%s",
+            pilot_id,
+            type(exc).__name__,
+            str(exc)[:300],
+        )
+        return None
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass

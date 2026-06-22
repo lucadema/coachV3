@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   CoachApiError,
+  getFeedbackForm,
   initialiseSession,
   recordSessionEvent,
   sendUserMessage,
+  submitFeedback,
 } from '../api/coachClient'
 import { isRefinedSynthesisWaitingForPathways, parsePathwayCards } from './sessionFlow'
 import {
@@ -13,7 +15,11 @@ import {
 import { downloadSessionPdf } from '../pdf/sessionPdfDownload'
 import { buildSessionPdfData } from '../pdf/sessionPdfLayout'
 import type { SessionPdfSourceData } from '../pdf/sessionPdfTypes'
-import { createDefaultFeedbackState, type FeedbackState } from '../types/feedback'
+import {
+  createDefaultFeedbackState,
+  type FeedbackFormConfig,
+  type FeedbackState,
+} from '../types/feedback'
 import type { OnboardingStep } from '../types/onboarding'
 import type { BackendSessionView, FrontendScreen } from '../types/session'
 import type { SynthesisReviewMode } from '../types/synthesis'
@@ -23,6 +29,7 @@ export type GlimpseStep =
   | 'coaching'
   | 'synthesis_review'
   | 'pathways'
+  | 'feedback_query'
   | 'feedback'
   | 'closed'
   | 'backend_response'
@@ -54,7 +61,9 @@ export function useGlimpseSession() {
   )
   const [synthesisMode, setSynthesisMode] = useState<SynthesisReviewMode>('review')
   const [cachedPathwaysMessage, setCachedPathwaysMessage] = useState('')
+  const [selectedPathwayTitle, setSelectedPathwayTitle] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<FeedbackState>(() => createDefaultFeedbackState())
+  const [feedbackForm, setFeedbackForm] = useState<FeedbackFormConfig | null>(null)
   const [sessionContent, setSessionContent] = useState<SessionPdfSourceData>({})
   const [frontendError, setFrontendError] = useState<string | null>(null)
   const [isInitialisingSession, setIsInitialisingSession] = useState(false)
@@ -140,7 +149,7 @@ export function useGlimpseSession() {
     }
 
     if (update.uiScreen === 'feedback') {
-      setStep('feedback')
+      void loadFeedbackForm(activeSessionId, 'feedback_query')
       return
     }
 
@@ -404,14 +413,44 @@ export function useGlimpseSession() {
     }
   }
 
+  async function loadFeedbackForm(
+    activeSessionId: string,
+    nextStep: Extract<GlimpseStep, 'feedback_query' | 'feedback'> = 'feedback',
+  ) {
+    try {
+      const form = await getFeedbackForm(activeSessionId)
+      if (!form.show_feedback) {
+        setStep('closed')
+        return
+      }
+      setFeedbackForm(form)
+      setStep(nextStep)
+    } catch {
+      setStep('closed')
+    }
+  }
+
+  function handleSelectedPathwayChange(pathway: { title: string }) {
+    setSelectedPathwayTitle((currentTitle) =>
+      currentTitle === pathway.title ? null : pathway.title,
+    )
+  }
+
+  function handleFeedbackQueryAccept() {
+    setStep('feedback')
+  }
+
+  function handleFeedbackQuerySkip() {
+    setStep('closed')
+  }
+
   function handleFeedbackClose(nextFeedback: FeedbackState) {
     setFeedback(nextFeedback)
     setStep('closed')
-    if (sessionId) {
-      void recordSessionEvent(sessionId, {
-        event: 'feedback_submitted',
-        feedback: nextFeedback,
-      }).catch(() => undefined)
+    if (sessionId && feedbackForm?.feedback_pack_id) {
+      void submitFeedback(sessionId, feedbackForm.feedback_pack_id, nextFeedback).catch(
+        () => undefined,
+      )
     }
   }
 
@@ -424,7 +463,9 @@ export function useGlimpseSession() {
     setLastBackendStayedInCoaching(null)
     setSynthesisMode('review')
     setCachedPathwaysMessage('')
+    setSelectedPathwayTitle(null)
     setFeedback(createDefaultFeedbackState())
+    setFeedbackForm(null)
     setSessionContent({})
     setFrontendError(null)
     setIsInitialisingSession(false)
@@ -452,6 +493,11 @@ export function useGlimpseSession() {
 
   const pathwaysText = coachMessage || cachedPathwaysMessage
   const pathways = parsePathwayCards(pathwaysText)
+  const stablePathways = pathways.length > 0 ? pathways : (sessionContent.pathways ?? [])
+  const selectedPathway =
+    selectedPathwayTitle === null
+      ? null
+      : (stablePathways.find((pathway) => pathway.title === selectedPathwayTitle) ?? null)
 
   function handleDownloadPathwaysPdf() {
     handleDownloadPdf({
@@ -472,11 +518,14 @@ export function useGlimpseSession() {
     lastBackendStayedInCoaching,
     synthesisMode,
     feedback,
+    feedbackForm,
+    selectedPathway,
+    selectedPathwayTitle,
     setFeedback,
     frontendError,
     isInitialisingSession,
     isSubmittingProblem,
-    pathways,
+    pathways: stablePathways,
     pathwaysText,
     handleStartSession,
     handlePrivacyContinue,
@@ -487,6 +536,9 @@ export function useGlimpseSession() {
     handleSubmitSynthesisRefinement,
     handleContinueToPathways,
     handlePathwaysContinue,
+    handleSelectedPathwayChange,
+    handleFeedbackQueryAccept,
+    handleFeedbackQuerySkip,
     handleFeedbackClose,
     handleStartNewSession,
     handleDownloadPathwaysPdf,

@@ -207,6 +207,25 @@ class AdminServiceBehaviourTests(unittest.TestCase):
         self.assertEqual(self.enterprise.name, "Test Enterprise")
         self.assertEqual(pilots[0].enterprise_id, self.enterprise.id)
         self.assertEqual(pilots[0].name, "Test Pilot")
+        self.assertIsNone(pilots[0].feedback_pack_id)
+
+    def test_pilot_feedback_pack_id_can_be_created_and_updated(self) -> None:
+        pilot = self.service.create_pilot(
+            PilotCreate(
+                enterprise_id=self.enterprise.id,
+                name="Feedback Pilot",
+                feedback_pack_id=" glimpse_default ",
+            )
+        )
+
+        self.assertEqual(pilot.feedback_pack_id, "glimpse_default")
+
+        updated = self.service.update_pilot(
+            pilot.id,
+            PilotUpdate(feedback_pack_id=" pilot_impact_questions "),
+        )
+
+        self.assertEqual(updated.feedback_pack_id, "pilot_impact_questions")
 
     def test_generate_glimpse_and_dashboard_links(self) -> None:
         glimpse_link = self.service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)

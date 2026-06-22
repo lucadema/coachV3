@@ -20,6 +20,7 @@ export type Pilot = {
   start_at: string | null
   end_at: string | null
   notes: string
+  feedback_pack_id: string | null
   created_at: string
   updated_at: string
 }

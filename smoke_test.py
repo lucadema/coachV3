@@ -92,6 +92,8 @@ def test_imports() -> None:
     check("pilot_id" in Session.model_fields, "Session supports optional pilot_id")
     check("problem_category" in Session.model_fields, "Session supports problem_category")
     check("engagement_signal" in Session.model_fields, "Session supports engagement_signal")
+    check("feedback_pack_id" in Session.model_fields, "Session supports feedback_pack_id")
+    check("feedback_responses" in Session.model_fields, "Session supports feedback_responses")
     check("run_coaching" in StageReply.model_fields, "StageReply has run_coaching")
     check("continue_turn" in StageReply.model_fields, "StageReply has continue_turn")
 

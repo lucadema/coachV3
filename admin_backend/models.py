@@ -60,6 +60,7 @@ class PilotCreate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     notes: str = ""
+    feedback_pack_id: str | None = None
 
 
 class PilotUpdate(BaseModel):
@@ -68,6 +69,7 @@ class PilotUpdate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     notes: str | None = None
+    feedback_pack_id: str | None = None
 
 
 class PilotView(BaseModel):
@@ -78,6 +80,7 @@ class PilotView(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     notes: str
+    feedback_pack_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

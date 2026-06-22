@@ -42,6 +42,13 @@ def generate_access_token_value() -> str:
     return secrets.token_urlsafe(TOKEN_BYTES)
 
 
+def _clean_optional_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def get_default_service() -> "AdminService":
     settings = get_settings()
     return AdminService(
@@ -150,6 +157,7 @@ class AdminService:
                 "start_at": payload.start_at,
                 "end_at": payload.end_at,
                 "notes": payload.notes,
+                "feedback_pack_id": _clean_optional_string(payload.feedback_pack_id),
             }
         )
         return PilotView.model_validate(row)
@@ -167,6 +175,8 @@ class AdminService:
             updates["status"] = updates["status"].value
         if "name" in updates and updates["name"] is not None:
             updates["name"] = updates["name"].strip()
+        if "feedback_pack_id" in updates:
+            updates["feedback_pack_id"] = _clean_optional_string(updates["feedback_pack_id"])
 
         row = self.repository.update_pilot(pilot_id, updates)
         if row is None:

@@ -1,5 +1,5 @@
 import type { BackendSessionView, BackendTurnResponse } from '../types/session'
-import type { FeedbackState } from '../types/feedback'
+import type { FeedbackFormConfig, FeedbackState } from '../types/feedback'
 import { getLaunchContext } from '../utils/launchContext'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
@@ -139,37 +139,43 @@ export async function sendUserMessage(
 
 export async function recordSessionEvent(
   sessionId: string,
-  event:
-    | { event: 'pdf_downloaded' }
-    | {
-        event: 'feedback_submitted'
-        feedback: FeedbackState
-      },
+  event: { event: 'pdf_downloaded' },
   options: CoachClientOptions = {},
 ): Promise<void> {
-  const payload =
-    event.event === 'feedback_submitted'
-      ? {
-          session_id: sessionId,
-          event: event.event,
-          answer_1: event.feedback.helpedThinkDifferently,
-          answer_2: event.feedback.organisationalBenefit,
-          dropdown_values: event.feedback.valuableMoments,
-          payload: {
-            answer_1: event.feedback.helpedThinkDifferently,
-            answer_2: event.feedback.organisationalBenefit,
-            dropdown_values: event.feedback.valuableMoments,
-          },
-        }
-      : {
-          session_id: sessionId,
-          event: event.event,
-        }
-
   await requestJson('/telemetry/session_event', {
     ...options,
     method: 'POST',
-    payload,
+    payload: {
+      session_id: sessionId,
+      event: event.event,
+    },
+  })
+}
+
+export async function getFeedbackForm(
+  sessionId: string,
+  options: CoachClientOptions = {},
+): Promise<FeedbackFormConfig> {
+  return requestJson<FeedbackFormConfig>(
+    `/coach/v2/feedback-form?session_id=${encodeURIComponent(sessionId)}`,
+    options,
+  )
+}
+
+export async function submitFeedback(
+  sessionId: string,
+  feedbackPackId: string,
+  responses: FeedbackState,
+  options: CoachClientOptions = {},
+): Promise<void> {
+  await requestJson('/coach/v2/feedback', {
+    ...options,
+    method: 'POST',
+    payload: {
+      session_id: sessionId,
+      feedback_pack_id: feedbackPackId,
+      responses,
+    },
   })
 }
 

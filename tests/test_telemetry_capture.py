@@ -93,10 +93,12 @@ class ClientTelemetryEventRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         mock_record_feedback.assert_called_once_with(
             session_id="session-1",
-            answer_1=True,
-            answer_2=False,
-            dropdown_values=["Receiving structured pathways rather than a generic answer"],
-            payload={"source": "test"},
+            feedback_pack_id="legacy_fixed_feedback",
+            feedback_responses={
+                "answer_1": True,
+                "answer_2": False,
+                "dropdown_values": ["Receiving structured pathways rather than a generic answer"],
+            },
             pilot_id=None,
         )
 

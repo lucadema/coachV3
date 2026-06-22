@@ -124,7 +124,7 @@ export function listPilots(enterpriseId: string, options: AdminClientOptions): P
 }
 
 export function createPilot(
-  payload: { enterprise_id: string; name: string; notes?: string },
+  payload: { enterprise_id: string; name: string; notes?: string; feedback_pack_id?: string | null },
   options: AdminClientOptions,
 ): Promise<Pilot> {
   return requestJson<Pilot>('/admin/pilots', {
@@ -136,7 +136,7 @@ export function createPilot(
 
 export function updatePilot(
   pilotId: string,
-  payload: { name?: string; status?: string; notes?: string },
+  payload: { name?: string; status?: string; notes?: string; feedback_pack_id?: string | null },
   options: AdminClientOptions,
 ): Promise<Pilot> {
   return requestJson<Pilot>(`/admin/pilots/${encodeURIComponent(pilotId)}`, {

@@ -9,7 +9,18 @@ from admin_backend.errors import AdminConfigurationError, AdminNotFoundError
 
 
 ENTERPRISE_COLUMNS = "id, name, status, notes, created_at, updated_at"
-PILOT_COLUMNS = "id, enterprise_id, name, status, start_at, end_at, notes, created_at, updated_at"
+PILOT_COLUMNS = """
+    id,
+    enterprise_id,
+    name,
+    status,
+    start_at,
+    end_at,
+    notes,
+    feedback_pack_id,
+    created_at,
+    updated_at
+"""
 TOKEN_COLUMNS = """
     id,
     pilot_id,
@@ -175,9 +186,9 @@ class AdminPostgresRepository:
         row = self._fetch_one(
             f"""
             INSERT INTO admin_pilots (
-                id, enterprise_id, name, status, start_at, end_at, notes
+                id, enterprise_id, name, status, start_at, end_at, notes, feedback_pack_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING {PILOT_COLUMNS}
             """,
             (
@@ -188,6 +199,7 @@ class AdminPostgresRepository:
                 pilot["start_at"],
                 pilot["end_at"],
                 pilot["notes"],
+                pilot["feedback_pack_id"],
             ),
         )
         if row is None:
@@ -339,7 +351,7 @@ class AdminPostgresRepository:
                 COUNT(*)::integer AS sessions_count,
                 MAX(last_interaction_at) AS last_activity_at,
                 COUNT(*) FILTER (
-                    WHERE feedback_submitted_at IS NOT NULL
+                    WHERE feedback_responses IS NOT NULL
                 )::integer AS feedback_records_count
             FROM coach_sessions
             WHERE pilot_id = %s

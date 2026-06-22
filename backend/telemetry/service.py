@@ -236,10 +236,8 @@ def record_session_closed(
 def record_feedback_submitted(
     *,
     session_id: str,
-    answer_1: bool | None = None,
-    answer_2: bool | None = None,
-    dropdown_values: list[str] | None = None,
-    payload: dict[str, Any] | None = None,
+    feedback_pack_id: str | None = None,
+    feedback_responses: dict[str, Any] | None = None,
     pilot_id: str | None = None,
 ) -> None:
     try:
@@ -247,13 +245,9 @@ def record_feedback_submitted(
             {
                 "event": "feedback_submitted",
                 "session_id": session_id,
-                "answer_1": answer_1,
-                "answer_2": answer_2,
-                "dropdown_values": dropdown_values,
+                "feedback_pack_id": feedback_pack_id,
+                "feedback_responses": feedback_responses or {},
                 "pilot_id": pilot_id,
-                # Do not emit arbitrary payload content; keys are enough for
-                # future schema debugging without risking personal data.
-                "payload_keys": _safe_payload_keys(payload),
             }
         )
     except Exception:

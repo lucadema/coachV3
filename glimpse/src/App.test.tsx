@@ -19,6 +19,39 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
   })
 }
 
+const feedbackFormResponse = {
+  show_feedback: true,
+  feedback_pack_id: 'glimpse_default',
+  title: 'Before you go, please tell us what you thought of the Aether Glimpse experience.',
+  survey_query: 'Would you be happy to answer a few quick questions about your experience?',
+  questions: [
+    {
+      id: 'helped_think_differently',
+      type: 'boolean',
+      text: 'Did Aether help you think about your challenge in a new way?',
+      required: false,
+    },
+    {
+      id: 'organisational_benefit',
+      type: 'boolean',
+      text: 'Can you see how access to this kind of thinking support could be benefical to a whole organisation',
+      required: false,
+    },
+    {
+      id: 'valuable_moments',
+      type: 'multi_select',
+      text: 'What was the most valuable moment in this session for you?',
+      required: false,
+      options: [
+        {
+          value: 'structured_pathways',
+          label: 'Receiving structured pathways rather than a generic answer',
+        },
+      ],
+    },
+  ],
+}
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -371,6 +404,8 @@ describe('App backend connection flow', () => {
           },
         }),
       )
+      .mockResolvedValueOnce(jsonResponse(feedbackFormResponse))
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
@@ -390,6 +425,7 @@ describe('App backend connection flow', () => {
     await flushPromises()
     fireEvent.click(screen.getByRole('button', { name: /that's it/i }))
     await flushPromises()
+    fireEvent.click(screen.getByRole('button', { name: /heart pathway one/i }))
     fireEvent.click(getLastContinueButton())
     await flushPromises()
 
@@ -400,18 +436,19 @@ describe('App backend connection flow', () => {
     expect(postBodies.some((body) => body.includes('"user_message":"continue"'))).toBe(true)
     expect(postBodies.every((body) => !body.includes('pathway_selected:'))).toBe(true)
     expect(
-      screen.getByText('Before you go, please tell us what you thought of the Aether Glimpse experience.'),
+      screen.getByText('Would you be happy to answer a few quick questions about your experience?'),
     ).toBeTruthy()
+    expect(screen.getByText('PATHWAY ONE')).toBeTruthy()
     expect(screen.queryByText('Closure text')).toBeNull()
 
+    fireEvent.click(screen.getByRole('button', { name: /yes, sure/i }))
+
     const callsBeforeClose = fetchMock.mock.calls.length
-    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
 
     expect(fetchMock).toHaveBeenCalledTimes(callsBeforeClose + 1)
     const closeBody = fetchMock.mock.calls.at(-1)?.[1]?.body
-    expect(typeof closeBody === 'string' && closeBody.includes('"event":"feedback_submitted"')).toBe(
-      true,
-    )
+    expect(typeof closeBody === 'string' && closeBody.includes('"feedback_pack_id":"glimpse_default"')).toBe(true)
     expect(screen.getByText('We hope you’ve enjoyed this glimpse of Aether')).toBeTruthy()
   })
 
@@ -540,6 +577,8 @@ describe('App backend connection flow', () => {
           },
         }),
       )
+      .mockResolvedValueOnce(jsonResponse(feedbackFormResponse))
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
@@ -569,11 +608,12 @@ describe('App backend connection flow', () => {
     await flushPromises()
 
     expect(
-      screen.getByText('Before you go, please tell us what you thought of the Aether Glimpse experience.'),
+      screen.getByText('Would you be happy to answer a few quick questions about your experience?'),
     ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /yes, sure/i }))
     fireEvent.click(
       screen.getByRole('button', {
-        name: /yes, aether helped me think about my challenge/i,
+        name: /yes, did aether help you think/i,
       }),
     )
     fireEvent.click(screen.getByRole('button', { name: /choose all options that apply/i }))
@@ -583,7 +623,7 @@ describe('App backend connection flow', () => {
       }),
     )
     fireEvent.click(screen.getByRole('button', { name: /choose all options that apply/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
 
     expect(screen.getByText(/We hope/i)).toBeTruthy()
     expect(screen.queryByText('Closure text')).toBeNull()

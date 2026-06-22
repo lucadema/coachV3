@@ -24,11 +24,8 @@ CREATE TABLE IF NOT EXISTS coach_sessions (
     problem_category TEXT NULL,
     engagement_signal TEXT NULL,
 
-    feedback_submitted_at TIMESTAMPTZ NULL,
-    feedback_answer_1 BOOLEAN NULL,
-    feedback_answer_2 BOOLEAN NULL,
-    feedback_dropdown_values TEXT[] NULL,
-    feedback_payload JSONB NULL,
+    feedback_pack_id TEXT NULL,
+    feedback_responses JSONB NULL,
 
     last_error TEXT NULL,
 

@@ -4,7 +4,7 @@ import { AetherWatermark } from '../components/onboarding/AetherWatermark'
 import { OnboardingButton } from '../components/onboarding/OnboardingButton'
 import { OnboardingCard } from '../components/onboarding/OnboardingCard'
 import { OnboardingFrame } from '../components/onboarding/OnboardingFrame'
-import { CloseIcon, DownloadIcon, ExpandIcon } from '../components/onboarding/UiIcons'
+import { CloseIcon, DownloadIcon, ExpandIcon, HeartIcon } from '../components/onboarding/UiIcons'
 import type { PathwayCard } from '../types/session'
 
 type PathwaysScreenProps = {
@@ -12,8 +12,10 @@ type PathwaysScreenProps = {
   isLoading?: boolean
   onContinue: () => void | Promise<void>
   onDownloadPdf: () => void
+  onSelectPathway?: (pathway: PathwayCard) => void
   pathways: PathwayCard[]
   rawPathwaysText?: string
+  selectedPathwayTitle?: string | null
 }
 
 const introText =
@@ -96,12 +98,16 @@ function ExpandedPathwayBody({ body }: { body: string }) {
 function PathwaySummaryCard({
   index,
   isLoading,
+  isSelected,
   pathway,
   onExpand,
+  onSelect,
 }: {
   index: number
   isLoading: boolean
+  isSelected: boolean
   onExpand: (index: number) => void
+  onSelect: (pathway: PathwayCard) => void
   pathway: PathwayCard
 }) {
   return (
@@ -109,6 +115,21 @@ function PathwaySummaryCard({
       <h2 className="absolute left-[26px] top-1/2 m-0 w-[236px] -translate-y-1/2 text-center text-[15px] font-bold leading-none text-[#294744]">
         {pathway.title.toUpperCase()}
       </h2>
+      <button
+        type="button"
+        aria-pressed={isSelected}
+        aria-label={`${isSelected ? 'Unheart' : 'Heart'} ${pathway.title}`}
+        disabled={isLoading}
+        onClick={() => {
+          onSelect(pathway)
+        }}
+        className={[
+          'absolute left-[7px] top-[7px] flex size-[24px] items-center justify-center rounded-[8px] bg-[rgba(255,255,255,0.65)] disabled:cursor-wait',
+          isSelected ? 'text-[#75b83b]' : 'text-[rgba(41,71,68,0.45)]',
+        ].join(' ')}
+      >
+        <HeartIcon filled={isSelected} />
+      </button>
       <ExpandButton
         disabled={isLoading}
         title={pathway.title}
@@ -135,8 +156,10 @@ export function PathwaysScreen({
   isLoading = false,
   onContinue,
   onDownloadPdf,
+  onSelectPathway,
   pathways,
   rawPathwaysText = '',
+  selectedPathwayTitle = null,
 }: PathwaysScreenProps) {
   const [expandedPathwayIndex, setExpandedPathwayIndex] = useState<number | null>(null)
   const expandedPathway =
@@ -193,10 +216,14 @@ export function PathwaysScreen({
                 {pathways.slice(0, 4).map((pathway, index) => (
                   <PathwaySummaryCard
                     index={index}
+                    isSelected={selectedPathwayTitle === pathway.title}
                     isLoading={isLoading}
                     key={`${pathway.title}-${index}`}
                     pathway={pathway}
                     onExpand={setExpandedPathwayIndex}
+                    onSelect={(selectedPathway) => {
+                      onSelectPathway?.(selectedPathway)
+                    }}
                   />
                 ))}
               </div>

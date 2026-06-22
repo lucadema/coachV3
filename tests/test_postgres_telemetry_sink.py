@@ -173,25 +173,24 @@ class PostgresTelemetrySinkTests(unittest.TestCase):
             {
                 "event": "feedback_submitted",
                 "session_id": "session-1",
-                "answer_1": True,
-                "answer_2": False,
-                "dropdown_values": ["Structured pathways"],
-                "payload_keys": ["answer_1", "answer_2", "dropdown_values"],
+                "feedback_pack_id": "glimpse_default",
+                "feedback_responses": {
+                    "helped_think_differently": True,
+                    "valuable_moments": ["structured_pathways"],
+                },
             }
         )
 
         update_sql, update_params = next(
             (sql, params)
             for sql, params in cursor.statements
-            if "feedback_submitted_at = NOW()" in sql
+            if "feedback_pack_id = %s" in sql
         )
-        self.assertIn("feedback_answer_1 = %s", update_sql)
-        self.assertEqual(update_params[0], True)
-        self.assertEqual(update_params[1], False)
-        self.assertEqual(update_params[2], ["Structured pathways"])
+        self.assertIn("feedback_responses = %s::jsonb", update_sql)
+        self.assertEqual(update_params[0], "glimpse_default")
         self.assertEqual(
-            update_params[3],
-            '{"payload_keys": ["answer_1", "answer_2", "dropdown_values"]}',
+            update_params[1],
+            '{"helped_think_differently": true, "valuable_moments": ["structured_pathways"]}',
         )
         connection.commit.assert_called_once()
 

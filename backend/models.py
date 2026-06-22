@@ -77,6 +77,11 @@ class Session(BaseModel):
     problem_category: str | None = None
     engagement_signal: str | None = None
 
+    # Configurable feedback capture. The question definitions stay in YAML;
+    # the session stores only the chosen pack and normalised answers.
+    feedback_pack_id: str | None = None
+    feedback_responses: dict[str, Any] | None = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
