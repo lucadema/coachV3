@@ -183,17 +183,29 @@ function AdminWorkspace({
   async function refreshPilotOperations(pilotId: string) {
     setIsLoading(true)
     setStatus({ message: null, tone: 'info' })
+    setLinks([])
+    setSummary(null)
+
+    const errors: string[] = []
+
     try {
-      const [nextLinks, nextSummary] = await Promise.all([
-        listLinks(pilotId, requestOptions),
-        getPilotSummary(pilotId, requestOptions),
-      ])
+      const nextLinks = await listLinks(pilotId, requestOptions)
       setLinks(nextLinks)
+    } catch (error) {
+      errors.push(getErrorMessage(error))
+    }
+
+    try {
+      const nextSummary = await getPilotSummary(pilotId, requestOptions)
       setSummary(nextSummary)
     } catch (error) {
-      setStatus({ message: getErrorMessage(error), tone: 'error' })
+      errors.push(getErrorMessage(error))
     } finally {
       setIsLoading(false)
+    }
+
+    if (errors.length > 0) {
+      setStatus({ message: errors[0], tone: 'error' })
     }
   }
 
@@ -477,7 +489,16 @@ function AdminWorkspace({
                 type="button"
                 key={pilot.id}
                 className={`list-row ${pilot.id === selectedPilotId ? 'selected' : ''}`}
-                onClick={() => setSelectedPilotId(pilot.id)}
+                onClick={() => {
+                  if (pilot.id === selectedPilotId) {
+                    void refreshPilotOperations(pilot.id)
+                    return
+                  }
+
+                  setLinks([])
+                  setSummary(null)
+                  setSelectedPilotId(pilot.id)
+                }}
               >
                 <span>
                   <strong>{pilot.name}</strong>
