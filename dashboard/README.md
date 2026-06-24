@@ -40,8 +40,16 @@ The frontend calls:
 GET /dashboard/{token}
 ```
 
-on the admin backend. The API returns aggregate data only and never returns raw
-conversation text, session trails, or individual feedback text.
+on the admin backend. Configure the deployed dashboard with:
+
+```text
+VITE_DASHBOARD_API_BASE_URL=https://<admin-backend-host>
+```
+
+For compatibility with the Glimpse frontend deployment config,
+`VITE_API_BASE_URL` is also accepted as a fallback. The API returns aggregate
+data only and never returns raw conversation text, session trails, or
+individual feedback text.
 
 ## Test Mode
 

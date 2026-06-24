@@ -15,7 +15,9 @@ export class DashboardApiError extends Error {
 
 export function getDashboardApiBaseUrl(): string {
   return (
-    import.meta.env.VITE_DASHBOARD_API_BASE_URL || DEFAULT_DASHBOARD_API_BASE_URL
+    import.meta.env.VITE_DASHBOARD_API_BASE_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    DEFAULT_DASHBOARD_API_BASE_URL
   ).replace(/\/+$/, '')
 }
 
