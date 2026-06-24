@@ -374,14 +374,20 @@ class AdminPostgresRepository:
     def list_feedback_responses_for_pilot(self, pilot_id: str) -> list[Any]:
         rows = self._fetch_all(
             """
-            SELECT feedback_responses
+            SELECT feedback_pack_id, feedback_responses
             FROM coach_sessions
             WHERE pilot_id = %s
               AND feedback_responses IS NOT NULL
             """,
             (pilot_id,),
         )
-        return [row.get("feedback_responses") for row in rows]
+        return [
+            {
+                "feedback_pack_id": row.get("feedback_pack_id"),
+                "feedback_responses": row.get("feedback_responses"),
+            }
+            for row in rows
+        ]
 
     def revoke_access_token(self, token_id: str) -> dict[str, Any] | None:
         return self._fetch_one(

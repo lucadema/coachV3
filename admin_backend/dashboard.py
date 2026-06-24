@@ -6,6 +6,8 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from backend.feedback import FeedbackConfig, FeedbackConfigError, load_feedback_config
+
 
 PROBLEM_CATEGORY_LABELS: dict[str, str] = {
     "organisational_friction": "Organisational friction",
@@ -27,9 +29,12 @@ VALUE_TIME_QUESTION_ID = "weekly_time_saved"
 VALUE_PEOPLE_QUESTION_ID = "people_who_would_benefit"
 FLAG_TO_ORGANISATION_QUESTION_ID = "flag_to_organisation"
 WEEKS_PER_MONTH = 4
+VALUE_QUESTION_IDS = (VALUE_TIME_QUESTION_ID, VALUE_PEOPLE_QUESTION_ID)
 
 # TODO: Wire in a configurable anonymity threshold if the product defines one.
 DASHBOARD_ANONYMITY_THRESHOLD: int | None = None
+
+ValueOptionMappings = dict[str, dict[str, dict[str, float]]]
 
 
 def build_count_buckets(
@@ -50,7 +55,42 @@ def build_count_buckets(
     return buckets
 
 
-def calculate_value_inputs(feedback_responses: Iterable[Any]) -> dict[str, Any]:
+def load_value_option_mappings() -> ValueOptionMappings:
+    """Return configured numeric option mappings for value dashboard inputs."""
+    try:
+        config = load_feedback_config()
+    except FeedbackConfigError:
+        return {}
+    return build_value_option_mappings(config)
+
+
+def build_value_option_mappings(config: FeedbackConfig) -> ValueOptionMappings:
+    mappings: ValueOptionMappings = {}
+
+    for pack_id, pack in config.feedback_packs.items():
+        pack_mappings: dict[str, dict[str, float]] = {}
+        for question in pack.questions:
+            if question.id not in VALUE_QUESTION_IDS:
+                continue
+
+            option_mappings = {
+                option.value: float(option.numeric_value)
+                for option in question.options
+                if _positive_number(option.numeric_value) is not None
+            }
+            if option_mappings:
+                pack_mappings[question.id] = option_mappings
+
+        if pack_mappings:
+            mappings[pack_id] = pack_mappings
+
+    return mappings
+
+
+def calculate_value_inputs(
+    feedback_responses: Iterable[Any],
+    option_mappings: ValueOptionMappings | None = None,
+) -> dict[str, Any]:
     """Calculate monthly-minute inputs from complete value feedback responses.
 
     The current implemented pilot impact pack stores weekly minutes and people
@@ -62,8 +102,10 @@ def calculate_value_inputs(feedback_responses: Iterable[Any]) -> dict[str, Any]:
     flag_yes_count = 0
     flag_no_count = 0
 
+    mappings = option_mappings if option_mappings is not None else load_value_option_mappings()
+
     for item in feedback_responses:
-        responses = _response_mapping(item)
+        pack_id, responses = _feedback_row_parts(item)
         if responses is None:
             continue
 
@@ -73,8 +115,18 @@ def calculate_value_inputs(feedback_responses: Iterable[Any]) -> dict[str, Any]:
         elif flag_answer is False:
             flag_no_count += 1
 
-        weekly_minutes = _numeric_answer(responses, VALUE_TIME_QUESTION_ID)
-        people = _numeric_answer(responses, VALUE_PEOPLE_QUESTION_ID)
+        weekly_minutes = _numeric_answer(
+            responses,
+            VALUE_TIME_QUESTION_ID,
+            pack_id=pack_id,
+            option_mappings=mappings,
+        )
+        people = _numeric_answer(
+            responses,
+            VALUE_PEOPLE_QUESTION_ID,
+            pack_id=pack_id,
+            option_mappings=mappings,
+        )
         if weekly_minutes is None or people is None:
             continue
 
@@ -89,6 +141,17 @@ def calculate_value_inputs(feedback_responses: Iterable[Any]) -> dict[str, Any]:
             "no_count": flag_no_count,
         },
     }
+
+
+def _feedback_row_parts(value: Any) -> tuple[str | None, Mapping[str, Any] | None]:
+    if isinstance(value, Mapping) and "feedback_responses" in value:
+        pack_id = value.get("feedback_pack_id")
+        return (
+            pack_id.strip() if isinstance(pack_id, str) and pack_id.strip() else None,
+            _response_mapping(value.get("feedback_responses")),
+        )
+
+    return None, _response_mapping(value)
 
 
 def _response_mapping(value: Any) -> Mapping[str, Any] | None:
@@ -106,12 +169,48 @@ def _response_mapping(value: Any) -> Mapping[str, Any] | None:
     return None
 
 
-def _numeric_answer(responses: Mapping[str, Any], question_id: str) -> float | None:
+def _numeric_answer(
+    responses: Mapping[str, Any],
+    question_id: str,
+    *,
+    pack_id: str | None,
+    option_mappings: ValueOptionMappings,
+) -> float | None:
     raw_answer = responses.get(question_id)
-    if not isinstance(raw_answer, Mapping):
-        return None
+    if isinstance(raw_answer, Mapping):
+        return _positive_number(raw_answer.get("numeric_value"))
 
-    return _positive_number(raw_answer.get("numeric_value"))
+    if isinstance(raw_answer, str):
+        return _mapped_option_number(
+            raw_answer,
+            question_id,
+            pack_id=pack_id,
+            option_mappings=option_mappings,
+        )
+
+    return None
+
+
+def _mapped_option_number(
+    option_value: str,
+    question_id: str,
+    *,
+    pack_id: str | None,
+    option_mappings: ValueOptionMappings,
+) -> float | None:
+    if pack_id:
+        return option_mappings.get(pack_id, {}).get(question_id, {}).get(option_value)
+
+    matches = [
+        question_mapping[option_value]
+        for pack_mapping in option_mappings.values()
+        for mapped_question_id, question_mapping in pack_mapping.items()
+        if mapped_question_id == question_id and option_value in question_mapping
+    ]
+    if len(matches) == 1:
+        return matches[0]
+
+    return None
 
 
 def _positive_number(value: Any) -> float | None:

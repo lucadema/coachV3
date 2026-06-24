@@ -119,6 +119,38 @@ class DashboardServiceTests(unittest.TestCase):
         )
         self.assertEqual(self.repository.used_token_ids, ["token-1"])
 
+    def test_value_inputs_use_configured_numeric_mappings_for_raw_option_values(self) -> None:
+        token = "dashboard-token"
+        self.repository.add_token(token, _dashboard_context())
+        self.repository.feedback_rows["pilot-1"] = [
+            {
+                "feedback_pack_id": "pilot_impact_questions",
+                "feedback_responses": {
+                    "weekly_time_saved": "more_than_an_hour",
+                    "people_who_would_benefit": "me_and_21_plus_others",
+                    "flag_to_organisation": True,
+                },
+            },
+            {
+                "feedback_pack_id": "pilot_impact_questions",
+                "feedback_responses": {
+                    "weekly_time_saved": "not_sure_or_not_applicable",
+                    "people_who_would_benefit": "me_and_1_to_10_others",
+                    "flag_to_organisation": False,
+                },
+            },
+        ]
+
+        dashboard = self.service.get_dashboard_data(token)
+
+        self.assertTrue(dashboard.available)
+        self.assertEqual(dashboard.value_unlocked.qualifying_responses_count, 1)
+        self.assertEqual(dashboard.value_unlocked.monthly_minutes, 9000)
+        self.assertEqual(
+            dashboard.value_unlocked.flag_to_organisation,
+            {"yes_count": 1, "no_count": 1},
+        )
+
     def test_paused_pilot_can_render_dashboard(self) -> None:
         token = "paused-dashboard-token"
         self.repository.add_token(token, _dashboard_context(pilot_status="paused"))
