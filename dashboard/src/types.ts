@@ -29,4 +29,9 @@ export type DashboardLoadState =
   | { status: 'loading' }
   | { status: 'ready'; data: DashboardData; isTestMode: boolean; tokenKey: string }
   | { status: 'unavailable' }
-  | { status: 'error' }
+  | {
+      status: 'error'
+      errorMessage: string | null
+      httpStatus: number | null
+      requestUrl: string | null
+    }

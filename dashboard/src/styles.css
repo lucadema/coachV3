@@ -459,6 +459,71 @@ input:focus {
   padding: 12px;
 }
 
+.debug-panel {
+  width: min(880px, 100%);
+  border: 1px solid rgba(41, 71, 68, 0.16);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 38px rgba(41, 71, 68, 0.08);
+  color: var(--ink);
+  padding: 18px;
+}
+
+.dashboard-shell > .debug-panel {
+  margin: -10px auto 8px;
+}
+
+.state-shell .debug-panel {
+  margin-top: 18px;
+}
+
+.debug-panel-header {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.debug-panel-header .eyebrow {
+  margin: 0;
+}
+
+.debug-panel-header span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.debug-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.debug-grid div {
+  border: 1px solid rgba(41, 71, 68, 0.1);
+  border-radius: 14px;
+  background: rgba(246, 243, 237, 0.68);
+  padding: 10px 12px;
+}
+
+.debug-grid dt {
+  color: var(--ink-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.debug-grid dd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .state-shell {
   display: grid;
   min-height: 100svh;
@@ -526,8 +591,15 @@ input:focus {
 
   .signal-legend,
   .flag-legend,
-  .value-grid {
+  .value-grid,
+  .debug-grid {
     grid-template-columns: 1fr;
+  }
+
+  .debug-panel-header {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .rate-field {

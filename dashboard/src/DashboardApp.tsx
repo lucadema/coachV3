@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
+  buildRedactedDashboardApiUrl,
+  DashboardApiError,
   fetchDashboardData,
+  getDashboardApiBaseUrl,
   getDashboardToken,
+  isDashboardDebugMode,
   isDashboardTestMode,
+  redactDashboardToken,
 } from './api/dashboardClient'
+import { DashboardDebugPanel } from './components/DashboardDebugPanel'
 import { DashboardHeader } from './components/DashboardHeader'
 import { EngagementHealthSection } from './components/EngagementHealthSection'
 import { ErrorState } from './components/ErrorState'
@@ -18,6 +24,7 @@ const TEST_TOKEN_KEY = 'test-dashboard'
 
 export function DashboardApp() {
   const [loadState, setLoadState] = useState<DashboardLoadState>(getInitialLoadState)
+  const debugPanel = buildDebugPanel(loadState)
 
   useEffect(() => {
     if (loadState.status !== 'loading') {
@@ -29,6 +36,7 @@ export function DashboardApp() {
     }
 
     let isMounted = true
+    const redactedRequestUrl = buildRedactedDashboardApiUrl(token)
     void fetchDashboardData(token)
       .then((data) => {
         if (!isMounted) {
@@ -47,9 +55,16 @@ export function DashboardApp() {
           tokenKey: token,
         })
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (isMounted) {
-          setLoadState({ status: 'error' })
+          const apiError = error instanceof DashboardApiError ? error : null
+          setLoadState({
+            status: 'error',
+            errorMessage:
+              error instanceof Error ? error.message : 'Dashboard data could not be loaded.',
+            httpStatus: apiError?.status ?? null,
+            requestUrl: redactedRequestUrl,
+          })
         }
       })
 
@@ -59,15 +74,15 @@ export function DashboardApp() {
   }, [loadState.status])
 
   if (loadState.status === 'loading') {
-    return <LoadingState />
+    return <LoadingState>{debugPanel}</LoadingState>
   }
 
   if (loadState.status === 'error') {
-    return <ErrorState />
+    return <ErrorState>{debugPanel}</ErrorState>
   }
 
   if (loadState.status === 'unavailable') {
-    return <UnavailableState />
+    return <UnavailableState>{debugPanel}</UnavailableState>
   }
 
   const { data, isTestMode, tokenKey } = loadState
@@ -82,6 +97,7 @@ export function DashboardApp() {
         pilotName={pilotName}
         pilotStatus={data.pilot_status}
       />
+      {debugPanel}
       <div className="section-stack">
         <ProblemCategorySection buckets={data.problem_categories} />
         <EngagementHealthSection buckets={data.engagement_signals} />
@@ -106,4 +122,33 @@ function getInitialLoadState(): DashboardLoadState {
   }
 
   return { status: 'loading' }
+}
+
+function buildDebugPanel(loadState: DashboardLoadState) {
+  if (!isDashboardDebugMode()) {
+    return null
+  }
+
+  const token = getDashboardToken()
+  const isTestMode = isDashboardTestMode()
+  const currentOrigin = typeof window === 'undefined' ? '' : window.location.origin
+  const isOnline = typeof navigator === 'undefined' ? null : navigator.onLine
+  const requestUrl =
+    loadState.status === 'error' && loadState.requestUrl
+      ? loadState.requestUrl
+      : buildRedactedDashboardApiUrl(token)
+
+  return (
+    <DashboardDebugPanel
+      apiBaseUrl={getDashboardApiBaseUrl()}
+      currentOrigin={currentOrigin}
+      errorMessage={loadState.status === 'error' ? loadState.errorMessage : null}
+      httpStatus={loadState.status === 'error' ? loadState.httpStatus : null}
+      isOnline={isOnline}
+      isTestMode={isTestMode}
+      requestUrl={requestUrl}
+      state={loadState.status}
+      tokenPreview={token ? redactDashboardToken(token) : 'missing or invalid'}
+    />
+  )
 }

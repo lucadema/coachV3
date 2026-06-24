@@ -5,11 +5,13 @@ const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,256}$/
 
 export class DashboardApiError extends Error {
   readonly status: number | null
+  readonly requestUrl: string
 
-  constructor(message: string, status: number | null = null) {
+  constructor(message: string, status: number | null = null, requestUrl = '') {
     super(message)
     this.name = 'DashboardApiError'
     this.status = status
+    this.requestUrl = requestUrl
   }
 }
 
@@ -23,6 +25,26 @@ export function getDashboardApiBaseUrl(): string {
 
 export function buildDashboardApiUrl(token: string, baseUrl = getDashboardApiBaseUrl()): string {
   return `${baseUrl.replace(/\/+$/, '')}/dashboard/${encodeURIComponent(token)}`
+}
+
+export function redactDashboardToken(token: string | null | undefined): string {
+  const normalized = String(token ?? '').trim()
+  if (!normalized) {
+    return 'missing'
+  }
+
+  return `${normalized.slice(0, 8)}... (${normalized.length} chars)`
+}
+
+export function buildRedactedDashboardApiUrl(
+  token: string | null,
+  baseUrl = getDashboardApiBaseUrl(),
+): string | null {
+  if (!token) {
+    return null
+  }
+
+  return `${baseUrl.replace(/\/+$/, '')}/dashboard/${redactDashboardToken(token)}`
 }
 
 export function sanitizeDashboardToken(value: string | null | undefined): string | null {
@@ -49,22 +71,39 @@ export function isDashboardTestMode(search = window.location.search): boolean {
   return value === '' || value === null || value.toLowerCase() === 'true'
 }
 
+export function isDashboardDebugMode(search = window.location.search): boolean {
+  const params = new URLSearchParams(search)
+  if (!params.has('debug')) {
+    return false
+  }
+
+  const value = params.get('debug')
+  return value === '' || value === null || value.toLowerCase() === 'true'
+}
+
 export async function fetchDashboardData(
   token: string,
   baseUrl = getDashboardApiBaseUrl(),
 ): Promise<DashboardData> {
-  const response = await fetch(buildDashboardApiUrl(token, baseUrl), {
+  const requestUrl = buildDashboardApiUrl(token, baseUrl)
+  const response = await fetch(requestUrl, {
     headers: {
       Accept: 'application/json',
     },
   }).catch((error: unknown) => {
     throw new DashboardApiError(
       error instanceof Error ? error.message : 'Dashboard data could not be loaded.',
+      null,
+      requestUrl,
     )
   })
 
   if (!response.ok) {
-    throw new DashboardApiError('Dashboard data could not be loaded.', response.status)
+    throw new DashboardApiError(
+      'Dashboard data could not be loaded.',
+      response.status,
+      requestUrl,
+    )
   }
 
   return (await response.json()) as DashboardData

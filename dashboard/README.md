@@ -66,6 +66,19 @@ Test mode is generated in:
 src/testData/dashboardTestData.ts
 ```
 
+## Debug Mode
+
+Use debug mode when the real dashboard URL shows the generic unavailable
+state:
+
+```text
+https://<dashboard-host>/?t=<dashboard-token>&debug=true
+```
+
+The debug panel shows the resolved API base URL, a redacted dashboard token,
+the redacted request URL, and any fetch/HTTP status. It does not show the full
+token.
+
 ## Sections
 
 The dashboard intentionally has exactly three main sections:

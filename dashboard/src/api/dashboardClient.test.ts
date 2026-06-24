@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildRedactedDashboardApiUrl,
   getDashboardApiBaseUrl,
   getDashboardToken,
+  isDashboardDebugMode,
   isDashboardTestMode,
+  redactDashboardToken,
   sanitizeDashboardToken,
 } from './dashboardClient'
 
@@ -37,5 +40,23 @@ describe('dashboardClient', () => {
     expect(isDashboardTestMode('?test')).toBe(true)
     expect(isDashboardTestMode('?test=true')).toBe(true)
     expect(isDashboardTestMode('?test=false')).toBe(false)
+  })
+
+  it('treats debug and debug=true as dashboard debug mode', () => {
+    expect(isDashboardDebugMode('?debug')).toBe(true)
+    expect(isDashboardDebugMode('?debug=true')).toBe(true)
+    expect(isDashboardDebugMode('?debug=false')).toBe(false)
+  })
+
+  it('redacts dashboard tokens in debug output', () => {
+    expect(redactDashboardToken('AbC_1234567890-token_value')).toBe(
+      'AbC_1234... (26 chars)',
+    )
+    expect(
+      buildRedactedDashboardApiUrl(
+        'AbC_1234567890-token_value',
+        'https://admin.example.com/',
+      ),
+    ).toBe('https://admin.example.com/dashboard/AbC_1234... (26 chars)')
   })
 })

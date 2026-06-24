@@ -1,4 +1,10 @@
-export function LoadingState() {
+import type { ReactNode } from 'react'
+
+type LoadingStateProps = {
+  children?: ReactNode
+}
+
+export function LoadingState({ children }: LoadingStateProps) {
   return (
     <main className="state-shell">
       <section className="state-panel" aria-live="polite">
@@ -6,6 +12,7 @@ export function LoadingState() {
         <h1>Loading dashboard</h1>
         <p>Preparing the pilot summary.</p>
       </section>
+      {children}
     </main>
   )
 }
