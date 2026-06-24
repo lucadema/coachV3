@@ -25,6 +25,12 @@ export type Pilot = {
   updated_at: string
 }
 
+export type FeedbackPackOption = {
+  id: string
+  label: string
+  title: string
+}
+
 export type AccessLink = {
   token_id: string
   pilot_id: string

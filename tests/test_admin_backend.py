@@ -248,6 +248,14 @@ class AdminServiceBehaviourTests(unittest.TestCase):
 
         self.assertEqual(updated.feedback_pack_id, "pilot_impact_questions")
 
+    def test_feedback_pack_options_are_loaded_from_config(self) -> None:
+        packs = self.service.list_feedback_pack_options()
+
+        pack_ids = [pack.id for pack in packs]
+        self.assertIn("glimpse_default", pack_ids)
+        self.assertIn("pilot_impact_questions", pack_ids)
+        self.assertTrue(all(pack.label for pack in packs))
+
     def test_generate_glimpse_and_dashboard_links(self) -> None:
         glimpse_link = self.service.generate_link(self.pilot.id, TokenType.GLIMPSE_APP)
         dashboard_link = self.service.generate_link(self.pilot.id, TokenType.DASHBOARD)
@@ -411,6 +419,18 @@ class AdminRouteAuthTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["name"], "Route Enterprise")
+
+    @patch.dict("os.environ", {"ADMIN_API_TOKEN": "test-admin-token"}, clear=False)
+    def test_authenticated_admin_can_list_feedback_packs(self) -> None:
+        response = self.client.get(
+            "/admin/feedback-packs",
+            headers={"Authorization": "Bearer test-admin-token"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pack_ids = [pack["id"] for pack in response.json()]
+        self.assertIn("glimpse_default", pack_ids)
+        self.assertIn("pilot_impact_questions", pack_ids)
 
     @patch.dict("os.environ", {"ADMIN_API_TOKEN": "test-admin-token"}, clear=False)
     def test_authenticated_admin_can_delete_pilot(self) -> None:

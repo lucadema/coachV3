@@ -269,6 +269,15 @@ label {
   max-width: 120px;
 }
 
+.feedback-pack-field {
+  flex: 1 1 240px;
+  min-width: 220px;
+}
+
+.feedback-pack-field select {
+  max-width: none;
+}
+
 .compact-actions {
   display: flex;
   align-items: center;
@@ -498,5 +507,14 @@ dt {
   .summary-grid,
   .link-card dl {
     grid-template-columns: 1fr;
+  }
+
+  .detail-strip {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .feedback-pack-field {
+    min-width: 0;
   }
 }

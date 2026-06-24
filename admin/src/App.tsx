@@ -7,6 +7,7 @@ import {
   deletePilot,
   generateLink,
   getPilotSummary,
+  listFeedbackPacks,
   listEnterprises,
   listLinks,
   listPilots,
@@ -15,7 +16,14 @@ import {
   updateEnterprise,
   updatePilot,
 } from './api/adminClient'
-import type { AccessLink, Enterprise, Pilot, PilotStatus, PilotSummary } from './types'
+import type {
+  AccessLink,
+  Enterprise,
+  FeedbackPackOption,
+  Pilot,
+  PilotStatus,
+  PilotSummary,
+} from './types'
 
 const ADMIN_TOKEN_STORAGE_KEY = 'aether_glimpse_admin_token'
 
@@ -136,6 +144,7 @@ function AdminWorkspace({
 }) {
   const [enterprises, setEnterprises] = useState<Enterprise[]>([])
   const [pilots, setPilots] = useState<Pilot[]>([])
+  const [feedbackPacks, setFeedbackPacks] = useState<FeedbackPackOption[]>([])
   const [links, setLinks] = useState<AccessLink[]>([])
   const [summary, setSummary] = useState<PilotSummary | null>(null)
   const [selectedEnterpriseId, setSelectedEnterpriseId] = useState<string | null>(null)
@@ -180,6 +189,15 @@ function AdminWorkspace({
     }
   }
 
+  async function refreshFeedbackPacks() {
+    try {
+      const rows = await listFeedbackPacks(requestOptions)
+      setFeedbackPacks(rows)
+    } catch (error) {
+      setStatus({ message: getErrorMessage(error), tone: 'error' })
+    }
+  }
+
   async function refreshPilotOperations(pilotId: string) {
     setIsLoading(true)
     setStatus({ message: null, tone: 'info' })
@@ -211,6 +229,7 @@ function AdminWorkspace({
 
   useEffect(() => {
     void refreshEnterprises()
+    void refreshFeedbackPacks()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestOptions])
 
@@ -286,6 +305,20 @@ function AdminWorkspace({
       const updated = await updatePilot(pilot.id, { status: statusValue }, requestOptions)
       setPilots((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       setStatus({ message: 'Pilot updated.', tone: 'success' })
+    } catch (error) {
+      setStatus({ message: getErrorMessage(error), tone: 'error' })
+    }
+  }
+
+  async function handlePilotFeedbackPackChange(pilot: Pilot, feedbackPackId: string) {
+    try {
+      const updated = await updatePilot(
+        pilot.id,
+        { feedback_pack_id: feedbackPackId || null },
+        requestOptions,
+      )
+      setPilots((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setStatus({ message: 'Pilot feedback form updated.', tone: 'success' })
     } catch (error) {
       setStatus({ message: getErrorMessage(error), tone: 'error' })
     }
@@ -519,6 +552,28 @@ function AdminWorkspace({
                   <strong>{selectedPilot.name}</strong>
                   <small>{selectedPilot.id}</small>
                 </div>
+                <label className="feedback-pack-field">
+                  Feedback form configuration
+                  <select
+                    value={selectedPilot.feedback_pack_id ?? ''}
+                    onChange={(event) => {
+                      void handlePilotFeedbackPackChange(selectedPilot, event.target.value)
+                    }}
+                  >
+                    <option value="">Default feedback form</option>
+                    {selectedPilot.feedback_pack_id &&
+                    !feedbackPacks.some((pack) => pack.id === selectedPilot.feedback_pack_id) ? (
+                      <option value={selectedPilot.feedback_pack_id}>
+                        {selectedPilot.feedback_pack_id}
+                      </option>
+                    ) : null}
+                    {feedbackPacks.map((pack) => (
+                      <option key={pack.id} value={pack.id}>
+                        {pack.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="compact-actions">
                   <select
                     value={selectedPilot.status}

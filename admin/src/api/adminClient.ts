@@ -1,4 +1,4 @@
-import type { AccessLink, Enterprise, Pilot, PilotSummary } from '../types'
+import type { AccessLink, Enterprise, FeedbackPackOption, Pilot, PilotSummary } from '../types'
 
 const DEFAULT_ADMIN_API_BASE_URL = 'http://127.0.0.1:8010'
 
@@ -151,6 +151,10 @@ export function deletePilot(pilotId: string, options: AdminClientOptions): Promi
     ...options,
     method: 'DELETE',
   })
+}
+
+export function listFeedbackPacks(options: AdminClientOptions): Promise<FeedbackPackOption[]> {
+  return requestJson<FeedbackPackOption[]>('/admin/feedback-packs', options)
 }
 
 export function getPilotSummary(pilotId: string, options: AdminClientOptions): Promise<PilotSummary> {

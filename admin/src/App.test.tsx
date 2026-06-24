@@ -46,6 +46,21 @@ describe('App', () => {
         ])
       }
 
+      if (url.endsWith('/admin/feedback-packs')) {
+        return jsonResponse([
+          {
+            id: 'glimpse_default',
+            label: 'Default Glimpse feedback',
+            title: 'Default feedback',
+          },
+          {
+            id: 'pilot_impact_questions',
+            label: 'Pilot impact questions',
+            title: 'Pilot impact',
+          },
+        ])
+      }
+
       if (url.endsWith('/admin/enterprises/enterprise-1/pilots')) {
         return jsonResponse([
           {
@@ -127,5 +142,106 @@ describe('App', () => {
       expect(screen.getByDisplayValue('https://pilot.example/start?t=pilot-two-token')).toBeTruthy()
     })
     expect(screen.getByRole('alert')).toBeTruthy()
+  })
+
+  it('lets an admin select and save the pilot feedback form configuration', async () => {
+    window.sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'test-admin-token')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.endsWith('/admin/enterprises')) {
+        return jsonResponse([
+          {
+            created_at: '2026-06-22T10:00:00Z',
+            id: 'enterprise-1',
+            name: 'Test Enterprise',
+            notes: '',
+            status: 'active',
+            updated_at: '2026-06-22T10:00:00Z',
+          },
+        ])
+      }
+
+      if (url.endsWith('/admin/feedback-packs')) {
+        return jsonResponse([
+          {
+            id: 'glimpse_default',
+            label: 'Default Glimpse feedback',
+            title: 'Default feedback',
+          },
+          {
+            id: 'pilot_impact_questions',
+            label: 'Pilot impact questions',
+            title: 'Pilot impact',
+          },
+        ])
+      }
+
+      if (url.endsWith('/admin/enterprises/enterprise-1/pilots')) {
+        return jsonResponse([
+          {
+            created_at: '2026-06-22T10:00:00Z',
+            end_at: null,
+            enterprise_id: 'enterprise-1',
+            feedback_pack_id: null,
+            id: 'pilot-1',
+            name: 'Pilot One',
+            notes: '',
+            start_at: null,
+            status: 'active',
+            updated_at: '2026-06-22T10:00:00Z',
+          },
+        ])
+      }
+
+      if (url.endsWith('/admin/pilots/pilot-1/links')) {
+        return jsonResponse([])
+      }
+
+      if (url.endsWith('/admin/pilots/pilot-1/summary')) {
+        return jsonResponse({
+          feedback_records_count: 0,
+          last_activity_at: null,
+          link_statuses: {},
+          pilot_id: 'pilot-1',
+          pilot_status: 'active',
+          sessions_count: 0,
+        })
+      }
+
+      if (url.endsWith('/admin/pilots/pilot-1') && init?.method === 'PATCH') {
+        expect(JSON.parse(String(init.body))).toEqual({
+          feedback_pack_id: 'pilot_impact_questions',
+        })
+        return jsonResponse({
+          created_at: '2026-06-22T10:00:00Z',
+          end_at: null,
+          enterprise_id: 'enterprise-1',
+          feedback_pack_id: 'pilot_impact_questions',
+          id: 'pilot-1',
+          name: 'Pilot One',
+          notes: '',
+          start_at: null,
+          status: 'active',
+          updated_at: '2026-06-22T10:05:00Z',
+        })
+      }
+
+      return jsonResponse({ detail: `Unhandled URL ${url}` }, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const feedbackSelect = await screen.findByLabelText(/feedback form configuration/i)
+    fireEvent.change(feedbackSelect, { target: { value: 'pilot_impact_questions' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('Pilot feedback form updated.')).toBeTruthy()
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/admin\/pilots\/pilot-1$/),
+      expect.objectContaining({ method: 'PATCH' }),
+    )
   })
 })
