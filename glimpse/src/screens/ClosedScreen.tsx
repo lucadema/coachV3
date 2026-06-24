@@ -31,7 +31,7 @@ export function ClosedScreen({ onDownloadPdf, onStartNewSession }: ClosedScreenP
           >
             <DownloadIcon />
           </button>
-          <p className="m-0 w-[760px] text-left text-[16.5px] font-light leading-[20px] tracking-[-0.66px] text-[#294744]">
+          <p className="m-0 w-[760px] text-left text-[24.75px] font-light leading-[20px] tracking-[-0.66px] text-[#294744]">
             {downloadNotice}
           </p>
         </div>

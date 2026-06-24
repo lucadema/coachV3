@@ -28,7 +28,7 @@ export function MobileClosedScreen({ onDownloadPdf, onStartNewSession }: MobileC
         >
           <DownloadIcon className="size-[16px]" />
         </button>
-        <p className="m-0 w-[306px] text-left text-[16.5px] font-light leading-[18px] tracking-[-0.66px]">
+        <p className="m-0 w-[306px] text-left text-[24.75px] font-light leading-[18px] tracking-[-0.66px]">
           {downloadNotice}
         </p>
       </div>
