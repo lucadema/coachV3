@@ -19,10 +19,10 @@ export function ClosedScreen({ onDownloadPdf, onStartNewSession }: ClosedScreenP
         <h1 className="absolute left-[92px] top-[285px] m-0 w-[1260px] text-center text-[78px] font-thin leading-[78px] tracking-[-3.12px] text-[#294744]">
           We hope you’ve enjoyed this glimpse of Aether
         </h1>
-        <p className="absolute left-[182px] top-[430px] m-0 w-[1080px] text-center text-[78px] font-thin leading-[78px] tracking-[-3.12px] text-[#294744]">
+        <p className="absolute left-[182px] top-[455px] m-0 w-[1080px] text-center text-[58px] font-thin leading-[64px] tracking-[-2.32px] text-[#294744]">
           Feel free to download a copy of your session and to start a new one.
         </p>
-        <div className="absolute left-1/2 top-[615px] flex w-[520px] -translate-x-1/2 items-start justify-center gap-[13px]">
+        <div className="absolute left-1/2 top-[638px] flex w-[820px] -translate-x-1/2 items-start justify-center gap-[16px]">
           <button
             type="button"
             aria-label="Download session PDF"
@@ -31,11 +31,11 @@ export function ClosedScreen({ onDownloadPdf, onStartNewSession }: ClosedScreenP
           >
             <DownloadIcon />
           </button>
-          <p className="m-0 w-[460px] text-left text-[11px] font-light leading-none tracking-[-0.44px] text-[#294744]">
+          <p className="m-0 w-[760px] text-left text-[16.5px] font-light leading-[20px] tracking-[-0.66px] text-[#294744]">
             {downloadNotice}
           </p>
         </div>
-        <div className="absolute left-1/2 top-[703px] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[735px] -translate-x-1/2">
           <OnboardingButton
             label="Start New Session"
             onClick={onStartNewSession}

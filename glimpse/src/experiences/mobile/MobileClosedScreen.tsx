@@ -16,10 +16,10 @@ export function MobileClosedScreen({ onDownloadPdf, onStartNewSession }: MobileC
       <h1 className="absolute left-[25px] top-[206px] m-0 w-[340px] text-center text-[30px] font-thin leading-[34px] tracking-[-1.2px]">
         We hope you’ve enjoyed this glimpse of Aether
       </h1>
-      <p className="absolute left-[25px] top-[356px] m-0 w-[340px] text-center text-[30px] font-thin leading-[34px] tracking-[-1.2px]">
+      <p className="absolute left-[25px] top-[378px] m-0 w-[340px] text-center text-[24px] font-thin leading-[29px] tracking-[-0.96px]">
         Feel free to download a copy of your session and to start a new one.
       </p>
-      <div className="absolute left-1/2 top-[642px] flex w-[310px] -translate-x-1/2 items-start justify-center gap-[8px]">
+      <div className="absolute left-1/2 top-[626px] flex w-[340px] -translate-x-1/2 items-start justify-center gap-[10px]">
         <button
           type="button"
           aria-label="Download session PDF"
@@ -28,7 +28,7 @@ export function MobileClosedScreen({ onDownloadPdf, onStartNewSession }: MobileC
         >
           <DownloadIcon className="size-[16px]" />
         </button>
-        <p className="m-0 w-[270px] text-left text-[11px] font-light leading-none tracking-[-0.44px]">
+        <p className="m-0 w-[306px] text-left text-[16.5px] font-light leading-[18px] tracking-[-0.66px]">
           {downloadNotice}
         </p>
       </div>

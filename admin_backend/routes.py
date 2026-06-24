@@ -12,6 +12,7 @@ from admin_backend.models import (
     EnterpriseCreate,
     EnterpriseUpdate,
     EnterpriseView,
+    FeedbackPackOption,
     PilotCreate,
     PilotSummary,
     PilotUpdate,
@@ -146,6 +147,20 @@ def list_pilots_for_enterprise(
 def create_pilot(payload: PilotCreate, service: AdminService = Depends(get_service)) -> PilotView:
     try:
         return service.create_pilot(payload)
+    except Exception as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/admin/feedback-packs",
+    response_model=list[FeedbackPackOption],
+    dependencies=[Depends(require_admin_auth)],
+)
+def list_feedback_packs(
+    service: AdminService = Depends(get_service),
+) -> list[FeedbackPackOption]:
+    try:
+        return service.list_feedback_pack_options()
     except Exception as exc:
         _raise_http_error(exc)
 

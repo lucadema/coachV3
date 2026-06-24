@@ -23,6 +23,7 @@ from admin_backend.models import (
     EnterpriseCreate,
     EnterpriseUpdate,
     EnterpriseView,
+    FeedbackPackOption,
     PilotCreate,
     PilotStatus,
     PilotSummary,
@@ -33,6 +34,7 @@ from admin_backend.models import (
     TokenValidationResponse,
 )
 from admin_backend.repository import AdminPostgresRepository
+from backend.feedback import FeedbackConfigError, load_feedback_config
 
 
 TOKEN_BYTES = 32
@@ -269,6 +271,17 @@ class AdminService:
             feedback_records_count=int(counts.get("feedback_records_count") or 0),
             link_statuses={link.token_type: link.status for link in links},
         )
+
+    def list_feedback_pack_options(self) -> list[FeedbackPackOption]:
+        try:
+            config = load_feedback_config()
+        except FeedbackConfigError as exc:
+            raise AdminConfigurationError(str(exc)) from exc
+
+        return [
+            FeedbackPackOption(id=pack_id, label=pack.label, title=pack.title)
+            for pack_id, pack in config.feedback_packs.items()
+        ]
 
     def get_dashboard_data(self, token: str) -> DashboardResponse:
         token_value = token.strip()

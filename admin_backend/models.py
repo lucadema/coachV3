@@ -119,6 +119,12 @@ class TokenValidationResponse(BaseModel):
     reason: str | None = None
 
 
+class FeedbackPackOption(BaseModel):
+    id: str
+    label: str
+    title: str
+
+
 class DashboardCountBucket(BaseModel):
     value: str
     label: str

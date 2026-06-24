@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+echo "Activating virtual environment..."
+source venv/bin/activate
+
+echo "Starting FastAPI backend on http://127.0.0.1:8000 ..."
+python -m uvicorn backend.api:app --host 127.0.0.1 --port 8000 --reload
