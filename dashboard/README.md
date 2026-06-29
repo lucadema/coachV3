@@ -60,11 +60,28 @@ http://localhost:5175/?test
 http://localhost:5175/?test=true
 ```
 
+Optional test-mode parameters:
+
+```text
+http://localhost:5175/?test&testsessions=200
+http://localhost:5175/?test&test_sessions=200
+http://localhost:5175/?test&test_orgname=NHS&test_pilotname=Demo%20Pilot
+```
+
+`testsessions` and `test_sessions` are both accepted. When no session count is
+provided, test mode uses a safe random count. Invalid values fall back to a
+default. Test data is generated from one shared session count so section totals
+remain broadly consistent.
+
 Test mode is generated in:
 
 ```text
 src/testData/dashboardTestData.ts
 ```
+
+Action Ownership and Stuck Signal are currently prototype dashboard sections.
+They are rendered only in test mode until the corresponding Glimpse
+classification data feed exists.
 
 ## Debug Mode
 
@@ -81,11 +98,16 @@ token.
 
 ## Sections
 
-The dashboard intentionally has exactly three main sections:
+The live dashboard currently renders the three backend-fed sections:
 
 - `src/components/ProblemCategorySection.tsx`
 - `src/components/EngagementHealthSection.tsx`
 - `src/components/ValueUnlockedSection.tsx`
+
+Test mode also renders two prototype-only sections:
+
+- `src/components/ActionOwnershipSection.tsx`
+- `src/components/StuckSignalSection.tsx`
 
 Shared chart pieces live in:
 
@@ -96,6 +118,8 @@ Shared chart pieces live in:
 Frontend transformation helpers live in:
 
 - `src/data/dashboardTransforms.ts`
+- `src/data/actionOwnershipTransforms.ts`
+- `src/data/stuckSignalTransforms.ts`
 - `src/data/valueCalculations.ts`
 
 The backend feedback value input calculation lives in:

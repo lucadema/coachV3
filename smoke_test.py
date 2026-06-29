@@ -33,6 +33,7 @@ from backend.stages import classification, closure, coaching, pathways, synthesi
 
 
 os.environ["COACHV3_USE_LLM"] = "0"
+os.environ["GLIMPSE_DEBUG_PERSISTENCE"] = "true"
 
 
 def banner(title: str) -> None:

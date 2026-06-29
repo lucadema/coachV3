@@ -171,6 +171,18 @@ input:focus {
   letter-spacing: 0;
 }
 
+.section-intro {
+  margin: -8px 0 18px;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.section-intro p {
+  max-width: 860px;
+  margin: 0;
+}
+
 .horizontal-chart {
   display: grid;
   gap: 14px;
@@ -459,6 +471,322 @@ input:focus {
   padding: 12px;
 }
 
+.ownership-tile-grid,
+.stuck-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin-bottom: 18px;
+}
+
+.ownership-tile,
+.stuck-card {
+  min-height: 164px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.ownership-tile {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  text-align: center;
+}
+
+.ownership-marker {
+  width: 12px;
+  height: 12px;
+  margin-bottom: 12px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.62;
+}
+
+.ownership-tile strong,
+.stuck-card strong {
+  color: var(--ink);
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ownership-tile h3 {
+  margin: 10px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ownership-tile p,
+.stuck-card p {
+  margin: 8px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ownership-tile small,
+.stuck-card small {
+  margin-top: 10px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ownership-self {
+  background: #eaf3de;
+  color: #4d7f24;
+}
+
+.ownership-escalation {
+  background: #faeeda;
+  color: #9a6620;
+}
+
+.ownership-system {
+  background: #faece7;
+  color: #a3563f;
+}
+
+.ownership-disengagement {
+  background: #fcebeb;
+  color: #a94736;
+}
+
+.ownership-comparison,
+.stuck-combined {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.subsection-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.subsection-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.subsection-heading p {
+  margin: 6px 0 0;
+  max-width: 760px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.subsection-heading > span {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ink-muted);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ownership-compare-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ownership-compare-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.compare-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.compare-dot.generated {
+  background: rgba(41, 71, 68, 0.28);
+}
+
+.compare-dot.hearted {
+  background: var(--ink);
+}
+
+.ownership-compare-list {
+  display: grid;
+  gap: 14px;
+}
+
+.ownership-compare-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.34fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.ownership-compare-label {
+  display: grid;
+  gap: 4px;
+}
+
+.ownership-compare-label span {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ownership-compare-label strong {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ownership-compare-bars {
+  display: grid;
+  gap: 7px;
+}
+
+.compare-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 12px;
+}
+
+.compare-track::before {
+  content: "";
+  position: absolute;
+  right: 38px;
+  left: 0;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(41, 71, 68, 0.08);
+}
+
+.compare-fill {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.compare-fill.generated {
+  background: rgba(41, 71, 68, 0.34);
+}
+
+.compare-fill.hearted {
+  background: var(--ink);
+}
+
+.compare-track em {
+  min-width: 28px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+
+.stuck-card {
+  display: grid;
+  align-content: start;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.stuck-card span {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.stuck-card strong {
+  margin-top: 10px;
+}
+
+.stuck-raised {
+  background: #faeeda;
+}
+
+.stuck-owner,
+.stuck-both,
+.stuck-gave-up {
+  background: #fcebeb;
+}
+
+.stuck-trying {
+  background: #faeeda;
+}
+
+.stuck-redirected {
+  background: #eaf3de;
+}
+
+.stuck-combined-list {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.stuck-combined-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+}
+
+.stuck-combined-row + .stuck-combined-row {
+  border-top: 1px solid var(--border);
+}
+
+.stuck-pill {
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stuck-combined-row h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.stuck-combined-row p {
+  margin: 6px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.stuck-combined-row > strong {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .debug-panel {
   width: min(880px, 100%);
   border: 1px solid rgba(41, 71, 68, 0.16);
@@ -560,6 +888,11 @@ input:focus {
   .value-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .ownership-tile-grid,
+  .stuck-card-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 680px) {
@@ -587,6 +920,16 @@ input:focus {
     align-items: start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .subsection-heading,
+  .stuck-combined-row {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .ownership-compare-row {
+    grid-template-columns: 1fr;
   }
 
   .signal-legend,

@@ -35,6 +35,11 @@ from backend.enums import (
     SynthesisState,
 )
 from backend.models import ChatMessage, Session, StageReply
+from backend.session_security import (
+    configured_session_ttl_minutes,
+    sanitize_debug_message,
+    short_session_ref,
+)
 from backend.state_store import state_store
 from backend.stages import classification, closure, coaching, pathways, synthesis
 from backend.telemetry.assessment import assess_synthesis_telemetry
@@ -74,6 +79,24 @@ def _session_status(session: Session) -> str | None:
         return "cancelled"
 
     return None
+
+
+def _cleanup_expired_sessions() -> None:
+    """Best-effort cleanup for abandoned live sessions."""
+    try:
+        state_store.cleanup_expired_sessions(configured_session_ttl_minutes())
+    except Exception as exc:
+        logger.warning(
+            "Session cleanup failed error_type=%s error=%s",
+            type(exc).__name__,
+            str(exc)[:300],
+        )
+
+
+def _persist_session(session: Session) -> Session:
+    """Persist the session after applying production-safe debug policy."""
+    session.debug_message = sanitize_debug_message(session.debug_message)
+    return state_store.save_session(session)
 
 
 def _telemetry_generation_flags(session: Session) -> tuple[bool | None, bool | None]:
@@ -312,14 +335,14 @@ def _run_stage_loop(session: Session) -> Session:
 
 def init_session(session_id: str | None = None) -> Session:
     """Initialize, persist, and return a new session."""
+    _cleanup_expired_sessions()
     session = Session(
         session_id=session_id or str(uuid.uuid4()),
         stage=Stage.CLASSIFICATION.value,
         state=_initial_state_for_stage(Stage.CLASSIFICATION),
         debug_message="Session initialized.",
     )
-    state_store.save_session(session)
-    return session
+    return _persist_session(session)
 
 
 def handle_user_msg(
@@ -328,6 +351,7 @@ def handle_user_msg(
     client_context: dict[str, Any] | None = None,
 ) -> Session:
     """Apply one user turn, execute the V3.1 state loop, persist, and return."""
+    _cleanup_expired_sessions()
     session = _require_session(session_id)
     is_first_user_turn = session.turn_count == 0
     was_terminal_session = session.completed or session.cancelled
@@ -381,8 +405,8 @@ def handle_user_msg(
             assess_synthesis_telemetry(session, synthesis_text=session.coach_message)
         except Exception as exc:
             logger.warning(
-                "Telemetry synthesis assessment failed session_id=%s error_type=%s error=%s",
-                session.session_id,
+                "Telemetry synthesis assessment failed session_ref=%s error_type=%s error=%s",
+                short_session_ref(session.session_id),
                 type(exc).__name__,
                 str(exc)[:300],
             )
@@ -412,8 +436,7 @@ def handle_user_msg(
             pilot_id=session.pilot_id,
         )
 
-    state_store.save_session(session)
-    return session
+    return _persist_session(session)
 
 
 def get_debug(session_id: str) -> Session:

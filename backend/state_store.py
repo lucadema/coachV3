@@ -7,7 +7,8 @@ or process restarts.
 
 import os
 import sqlite3
-from datetime import datetime, timezone
+from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -33,7 +34,7 @@ class StateStore:
 
     def _ensure_schema(self) -> None:
         """Create the sessions table on first use."""
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -48,7 +49,7 @@ class StateStore:
     def save_session(self, session: Session) -> Session:
         """Insert or replace a session in the store."""
         session.updated_at = datetime.now(timezone.utc)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO sessions (session_id, session_json, updated_at)
@@ -65,7 +66,7 @@ class StateStore:
 
     def get_session(self, session_id: str) -> Session | None:
         """Return a session if it exists, otherwise None."""
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT session_json FROM sessions WHERE session_id = ?",
                 (session_id,),
@@ -78,27 +79,51 @@ class StateStore:
 
     def has_session(self, session_id: str) -> bool:
         """Return True if the session exists in the store."""
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT 1 FROM sessions WHERE session_id = ?",
                 (session_id,),
             ).fetchone()
         return row is not None
 
-    def delete_session(self, session_id: str) -> None:
+    def delete_session(self, session_id: str) -> int:
         """Remove a session if it exists."""
-        with self._connect() as connection:
-            connection.execute(
+        with closing(self._connect()) as connection:
+            cursor = connection.execute(
                 "DELETE FROM sessions WHERE session_id = ?",
                 (session_id,),
             )
             connection.commit()
+            return cursor.rowcount
 
     def clear(self) -> None:
         """Clear all sessions from the store."""
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute("DELETE FROM sessions")
             connection.commit()
+
+    def cleanup_expired_sessions(
+        self,
+        ttl_minutes: int,
+        *,
+        now: datetime | None = None,
+    ) -> int:
+        """Delete sessions older than the inactivity TTL and return the count."""
+        if ttl_minutes <= 0:
+            return 0
+
+        reference_time = now or datetime.now(timezone.utc)
+        if reference_time.tzinfo is None:
+            reference_time = reference_time.replace(tzinfo=timezone.utc)
+
+        cutoff = reference_time.astimezone(timezone.utc) - timedelta(minutes=ttl_minutes)
+        with closing(self._connect()) as connection:
+            cursor = connection.execute(
+                "DELETE FROM sessions WHERE updated_at < ?",
+                (cutoff.isoformat(),),
+            )
+            connection.commit()
+            return cursor.rowcount
 
 
 state_store = StateStore()

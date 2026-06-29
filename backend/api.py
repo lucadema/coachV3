@@ -32,6 +32,7 @@ from backend.models import (
     UserMsg,
     UserMsgReply,
 )
+from backend.session_security import DEBUG_DISABLED_MESSAGE, debug_persistence_enabled
 
 
 LOCAL_CORS_ORIGINS = [
@@ -210,6 +211,15 @@ def debug_trace(session_id: str) -> DebugReply:
         session = get_debug(session_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    if not debug_persistence_enabled():
+        return DebugReply(
+            session=_build_session_view(session),
+            debug_message=DEBUG_DISABLED_MESSAGE,
+            turn_count=session.turn_count,
+            stage_turn_count=session.stage_turn_count,
+            stage_context={},
+        )
 
     return DebugReply(
         session=_build_session_view(session),

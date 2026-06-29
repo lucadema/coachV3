@@ -203,7 +203,7 @@ class FeedbackApiTests(unittest.TestCase):
         self.assertEqual(response.feedback_pack_id, "glimpse_default")
 
     @patch("backend.feedback.telemetry.record_feedback_submitted")
-    def test_feedback_submission_stores_normalised_session_fields(self, mock_record) -> None:
+    def test_feedback_submission_records_telemetry_and_deletes_live_session(self, mock_record) -> None:
         response = self.client.post(
             "/coach/v2/feedback",
             json={
@@ -218,16 +218,16 @@ class FeedbackApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         stored = state_store.get_session("session-1")
-        self.assertIsNotNone(stored)
-        self.assertEqual(stored.feedback_pack_id, "glimpse_default")
-        self.assertEqual(
-            stored.feedback_responses,
-            {
+        self.assertIsNone(stored)
+        mock_record.assert_called_once_with(
+            session_id="session-1",
+            feedback_pack_id="glimpse_default",
+            feedback_responses={
                 "helped_think_differently": True,
                 "valuable_moments": ["relevant_resolutions"],
             },
+            pilot_id=None,
         )
-        mock_record.assert_called_once()
 
     def test_feedback_submission_rejects_invalid_question(self) -> None:
         response = self.client.post(

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildRedactedDashboardApiUrl,
   getDashboardApiBaseUrl,
+  getDashboardTestOptions,
   getDashboardToken,
   isDashboardDebugMode,
   isDashboardTestMode,
@@ -11,6 +12,7 @@ import {
 
 describe('dashboardClient', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllEnvs()
   })
 
@@ -40,6 +42,28 @@ describe('dashboardClient', () => {
     expect(isDashboardTestMode('?test')).toBe(true)
     expect(isDashboardTestMode('?test=true')).toBe(true)
     expect(isDashboardTestMode('?test=false')).toBe(false)
+  })
+
+  it('parses dashboard test options safely', () => {
+    expect(
+      getDashboardTestOptions(
+        '?test&test_sessions=200&test_orgname=NHS&test_pilotname=Demo%20Pilot',
+      ),
+    ).toEqual({
+      enterpriseName: 'NHS',
+      pilotName: 'Demo Pilot',
+      sessionCount: 200,
+    })
+    expect(getDashboardTestOptions('?test&testsessions=42').sessionCount).toBe(42)
+    expect(getDashboardTestOptions('?test&test_sessions=not-a-number').sessionCount).toBe(50)
+  })
+
+  it('uses a bounded random session count when absent from test options', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    expect(getDashboardTestOptions('?test').sessionCount).toBe(35)
+
+    randomSpy.mockReturnValue(0.999)
+    expect(getDashboardTestOptions('?test').sessionCount).toBe(120)
   })
 
   it('treats debug and debug=true as dashboard debug mode', () => {

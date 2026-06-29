@@ -4,17 +4,20 @@ import {
   DashboardApiError,
   fetchDashboardData,
   getDashboardApiBaseUrl,
+  getDashboardTestOptions,
   getDashboardToken,
   isDashboardDebugMode,
   isDashboardTestMode,
   redactDashboardToken,
 } from './api/dashboardClient'
+import { ActionOwnershipSection } from './components/ActionOwnershipSection'
 import { DashboardDebugPanel } from './components/DashboardDebugPanel'
 import { DashboardHeader } from './components/DashboardHeader'
 import { EngagementHealthSection } from './components/EngagementHealthSection'
 import { ErrorState } from './components/ErrorState'
 import { LoadingState } from './components/LoadingState'
 import { ProblemCategorySection } from './components/ProblemCategorySection'
+import { StuckSignalSection } from './components/StuckSignalSection'
 import { UnavailableState } from './components/UnavailableState'
 import { ValueUnlockedSection } from './components/ValueUnlockedSection'
 import { createDashboardTestData } from './testData/dashboardTestData'
@@ -102,6 +105,12 @@ export function DashboardApp() {
         <ProblemCategorySection buckets={data.problem_categories} />
         <EngagementHealthSection buckets={data.engagement_signals} />
         <ValueUnlockedSection tokenKey={tokenKey} valueInputs={data.value_unlocked} />
+        {isTestMode && data.action_ownership ? (
+          <ActionOwnershipSection data={data.action_ownership} />
+        ) : null}
+        {isTestMode && data.stuck_signal ? (
+          <StuckSignalSection data={data.stuck_signal} />
+        ) : null}
       </div>
     </main>
   )
@@ -111,7 +120,7 @@ function getInitialLoadState(): DashboardLoadState {
   if (isDashboardTestMode()) {
     return {
       status: 'ready',
-      data: createDashboardTestData(),
+      data: createDashboardTestData(getDashboardTestOptions()),
       isTestMode: true,
       tokenKey: TEST_TOKEN_KEY,
     }

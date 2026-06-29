@@ -258,6 +258,7 @@ def store_feedback_submission(submission: FeedbackSubmission) -> Session:
         feedback_responses=normalised_responses,
         pilot_id=session.pilot_id,
     )
+    state_store.delete_session(session.session_id)
 
     return session
 
