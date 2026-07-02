@@ -1,0 +1,104 @@
+enabled: true
+mode: "block"
+max_length: 12000
+repeated_character_limit: 24
+repeated_phrase_limit: 5
+default_block_message: "I can't continue with that wording. Please rephrase your message in a way that stays appropriate for a reflective workplace coaching session."
+
+categories:
+  prompt_injection:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't process instructions that try to change how the coaching system works. Please describe the workplace issue you want to reflect on."
+    patterns:
+      - "\\bignore (all )?(the )?(previous|prior|above) instructions\\b"
+      - "\\bdisregard (all )?(the )?(previous|prior|above) instructions\\b"
+      - "\\bforget your instructions\\b"
+      - "\\bdo not follow (the )?(above|previous|prior)\\b"
+      - "\\boverride (the )?(prompt|instructions|system)\\b"
+      - "\\bbypass your rules\\b"
+      - "\\bdisable safety\\b"
+      - "\\bact as dan\\b"
+      - "\\bjailbreak\\b"
+      - "\\byou are now (dan|developer|system|chatgpt|an? unrestricted|in developer mode|a different assistant)\\b"
+
+  abusive_language:
+    enabled: true
+    severity: "medium"
+    action: "block"
+    user_message: "I can't continue with that wording. Please rephrase your message in a way that stays appropriate for a reflective workplace coaching session."
+    patterns:
+      - "\\bfuck you\\b"
+      - "\\bshut the fuck up\\b"
+      - "\\byou (are|re) (an? )?(idiot|moron)\\b"
+
+  hate_or_harassment:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't continue with language that targets or demeans people. Please rephrase the workplace issue without harassment or hate."
+    patterns:
+      - "\\bgo back to your country\\b"
+      - "\\b(all|every) [a-z ]{2,40} should be (fired|removed|excluded) because they are [a-z ]{2,40}\\b"
+
+  threats_or_violence:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't continue with threats or violent intent. Please rephrase the workplace issue without threats."
+    patterns:
+      - "\\bi (will|am going to|m going to|want to) (kill|hurt|attack|beat up) (you|them|him|her|my boss|my manager|my coworker|my colleague)\\b"
+      - "\\bthey deserve to (die|be killed|get hurt)\\b"
+
+  sexual_content:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't continue with sexual content here. Please rephrase the workplace issue in appropriate professional terms."
+    patterns:
+      - "\\bsend nudes\\b"
+      - "\\bexplicit sexual\\b"
+      - "\\bsexually explicit\\b"
+
+  self_harm_or_crisis:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "This may need support beyond this coaching space. Please pause and consider contacting someone you trust or an appropriate support service. You can rephrase the workplace issue when you are ready."
+    patterns:
+      - "\\bi (want to|am going to|m going to) (kill myself|end my life|hurt myself)\\b"
+      - "\\bi don't want to live\\b"
+      - "\\bi cannot go on\\b"
+
+  illegal_or_malicious:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't help with illegal or malicious requests. Please describe the workplace issue you want to reflect on."
+    patterns:
+      - "\\bhow (do|can) i (hack|steal passwords|phish|make malware|write malware)\\b"
+      - "\\bhelp me (hack|steal passwords|phish|make malware|write malware)\\b"
+      - "\\bmake a bomb\\b"
+
+  secrets_or_system_extraction:
+    enabled: true
+    severity: "high"
+    action: "block"
+    user_message: "I can't reveal hidden instructions or internal system details. Please describe the workplace issue you want to reflect on."
+    patterns:
+      - "\\breveal (your )?system prompt\\b"
+      - "\\bshow me (your )?system prompt\\b"
+      - "\\bprint (your )?system prompt\\b"
+      - "\\breveal developer message\\b"
+      - "\\bshow hidden instructions\\b"
+      - "\\boutput your internal instructions\\b"
+
+  spam_or_nonsense:
+    enabled: true
+    severity: "low"
+    action: "block"
+    user_message: "Please enter a brief workplace issue or reflection so we can continue."
+    patterns:
+      - "\\basdfasdfasdf\\b"
+      - "\\bqwertyqwerty\\b"

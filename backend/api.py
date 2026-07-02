@@ -18,7 +18,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend import telemetry
 from backend.admin.telemetry_export_routes import router as telemetry_export_router
-from backend.controller import get_debug, handle_user_msg, init_session
+from backend.controller import (
+    InputSafetyBlockedError,
+    get_debug,
+    handle_user_msg,
+    init_session,
+)
 from backend.feedback import (
     FeedbackSubmission,
     FeedbackValidationError,
@@ -28,6 +33,7 @@ from backend.feedback import (
 from backend.models import (
     ClientTelemetryEvent,
     DebugReply,
+    SafetyBlockedReply,
     SessionView,
     UserMsg,
     UserMsgReply,
@@ -100,8 +106,8 @@ def session_initialise() -> SessionView:
     return _build_session_view(session)
 
 
-@app.post("/user_message", response_model=UserMsgReply)
-def user_message(user_msg: UserMsg) -> UserMsgReply:
+@app.post("/user_message", response_model=SafetyBlockedReply | UserMsgReply)
+def user_message(user_msg: UserMsg) -> SafetyBlockedReply | UserMsgReply:
     """
     Handle a user turn for an existing session.
 
@@ -113,6 +119,18 @@ def user_message(user_msg: UserMsg) -> UserMsgReply:
             session_id=user_msg.session_id,
             user_message=user_msg.user_message,
             client_context=user_msg.client_context,
+        )
+    except InputSafetyBlockedError as exc:
+        safety_message = exc.result.user_message or (
+            "I can't continue with that wording. Please rephrase your message "
+            "in a way that stays appropriate for a reflective workplace coaching session."
+        )
+        return SafetyBlockedReply(
+            session=_build_session_view(exc.session),
+            coach_message=safety_message,
+            message=safety_message,
+            safety_category=exc.result.category,
+            safety_reason_code=exc.result.reason_code,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc

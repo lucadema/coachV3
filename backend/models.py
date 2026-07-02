@@ -126,6 +126,26 @@ class UserMsgReply(BaseModel):
     coach_message: str | None = None
 
 
+class SafetyBlockedReply(BaseModel):
+    """
+    Reply returned when deterministic input safety blocks a user message.
+
+    The session view is the current unchanged session state. The duplicated
+    message/coach_message fields keep the payload easy for existing and future
+    clients to display without implying that the coaching engine ran.
+    """
+
+    session: SessionView
+    coach_message: str | None = None
+    message: str
+    blocked: Literal[True] = True
+    safety_blocked: Literal[True] = True
+    safety_category: str | None = None
+    safety_reason_code: str | None = None
+    synthesis: None = None
+    pathways: None = None
+
+
 class ClientTelemetryEvent(BaseModel):
     """Telemetry-only event payload sent by a frontend client."""
 

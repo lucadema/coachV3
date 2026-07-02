@@ -34,6 +34,7 @@ from backend.enums import (
     StateType,
     SynthesisState,
 )
+from backend.input_safety import InputSafetyResult, evaluate_input_safety
 from backend.models import ChatMessage, Session, StageReply
 from backend.session_security import (
     configured_session_ttl_minutes,
@@ -56,6 +57,15 @@ INITIAL_STATE_BY_STAGE = {
 }
 
 MAX_INTERNAL_STEPS = 12
+
+
+class InputSafetyBlockedError(Exception):
+    """Raised when the deterministic safety gate blocks a user turn."""
+
+    def __init__(self, result: InputSafetyResult, session: Session) -> None:
+        super().__init__(result.reason_code or "input_safety_blocked")
+        self.result = result
+        self.session = session
 
 
 def _initial_state_for_stage(stage: Stage) -> str:
@@ -127,6 +137,23 @@ def _require_session(session_id: str) -> Session:
         raise ValueError(f"Session not found: {session_id}")
 
     return session
+
+
+def _append_input_safety_debug(session: Session, result: InputSafetyResult) -> None:
+    """Add safe, high-level input safety trace lines to the session debug log."""
+    if result.mode == "off" and result.category is None:
+        return
+
+    lines = [
+        f"input_safety_mode={result.mode}",
+        f"input_safety_blocked={str(result.blocked).lower()}",
+    ]
+    if result.category:
+        lines.append(f"input_safety_category={result.category}")
+    if result.reason_code:
+        lines.append(f"input_safety_reason_code={result.reason_code}")
+
+    _append_debug_message(session, *lines)
 
 
 def _stage_module_for(stage_name: str) -> Any:
@@ -371,6 +398,18 @@ def handle_user_msg(
     session.evaluation_message = None
     session.coach_message = None
     session.debug_message = None
+
+    safety_result = evaluate_input_safety(
+        user_message,
+        context={
+            "session_id": session.session_id,
+            "stage": session.stage,
+            "state": session.state,
+        },
+    )
+    _append_input_safety_debug(session, safety_result)
+    if safety_result.blocked:
+        raise InputSafetyBlockedError(safety_result, session)
 
     # Telemetry is a non-critical side effect. It must never affect the
     # controller state machine or user-visible response.

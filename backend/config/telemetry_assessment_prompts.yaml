@@ -1,70 +1,172 @@
 problem_category_prompt: |
-  You are classifying an Aether Glimpse problem synthesis for anonymous organisational telemetry.
+  You classify one Aether Glimpse problem synthesis for anonymous organisational telemetry.
 
-  Classify the synthesis into exactly one of the following values:
+  TASK
+  Classify the synthesis into exactly one problem_category value, or null.
 
+  SOURCE
+  Use only the generated problem synthesis supplied by the application.
+  Do not infer from pathways, feedback, user identity, pilot context, or external knowledge.
+
+  CORE RULE
+  Classify the dominant organisational barrier: the main reason progress, clarity, coordination, decision quality, adaptation, or value is blocked.
+  Do not classify emotional tone, wording style, severity, or every issue mentioned.
+  If several categories appear, choose the one that best explains the root barrier in the synthesis.
+
+  VALID VALUES
   - organisational_friction
   - lack_of_clarity_alignment
   - poor_decision_making
   - siloed_thinking
   - strategy_execution_gap
   - inability_to_adapt
+  - null
 
-  Definitions:
+  NULL RULE
+  Return null if the synthesis is missing, too vague, not work-related, not organisational, mainly personal rather than organisational, or cannot be classified safely.
+
+  CATEGORY RUBRIC
 
   organisational_friction:
-    Time, energy or attention is lost through process drag, duplication, avoidable handoffs, meetings, approvals or coordination overhead.
+    Use when the dominant barrier is the cost or drag of moving work through the organisation.
+    Typical evidence: duplication, repeated handoffs, excessive approvals, process burden, repeated meetings without progress, re-entering the same information, avoidable operational overhead.
+    Do not use when the main issue is unclear ownership, a missing decision, weak cross-team context, or failed adaptation to change.
 
   lack_of_clarity_alignment:
-    People are working, but priorities, ownership, expectations, goals or responsibilities are unclear or interpreted differently.
+    Use when the dominant barrier is absence of shared understanding.
+    Typical evidence: unclear priorities, unclear ownership of work, unclear roles, unclear expectations, misaligned goals, unclear scope, no shared definition of success or next steps.
+    Do not use when the main issue is a specific decision that is not being made, or when strategy exists but is not being converted into action.
 
   poor_decision_making:
-    Decisions are delayed, avoided, escalated unnecessarily, made without clear criteria, or lack clear accountability.
+    Use when the dominant barrier is decision failure.
+    Typical evidence: delayed decisions, avoided decisions, unclear decision rights, missing decision criteria, decisions repeatedly escalated or reopened, no accountable decision owner, people blocked because no decision has been made.
+    Do not use for general ambiguity unless the ambiguity is specifically about who decides, how a decision is made, or what criteria govern it.
 
   siloed_thinking:
-    Teams, roles or functions operate locally without enough shared context, knowledge flow or cross-boundary collaboration.
+    Use when the dominant barrier is weak cross-boundary context or collaboration.
+    Typical evidence: teams/functions solving separately, local optimisation, poor information flow across boundaries, dependencies not visible, knowledge not shared, groups not seeing the whole system.
+    Do not use for ordinary process burden or unclear ownership within one team.
 
   strategy_execution_gap:
-    Direction, intent or priorities exist, but they do not translate into clear, coordinated action.
+    Use when a strategy, direction, priority, or leadership intent exists but is not becoming coordinated action.
+    Typical evidence: strategy not landing, intent not converted into operating priorities, direction without execution, leadership message disconnected from team routines or delivery.
+    Do not use when no clear strategy or priority exists; use lack_of_clarity_alignment instead.
 
   inability_to_adapt:
-    The need for change is recognised, but the organisation struggles to absorb, implement or sustain the change.
+    Use when the dominant barrier is failure to respond to, absorb, implement, or sustain change.
+    Typical evidence: change not sticking, reverting to old habits, new ways of working not embedded, change fatigue, inability to respond to new context, adaptation blocked after change has begun.
+    Do not use for ordinary strategy execution unless the issue is specifically change absorption or sustained adaptation.
 
+  BOUNDARY RULES
+  1. Clarity vs decision-making:
+     If the issue is unclear roles, work ownership, priorities, or expectations, choose lack_of_clarity_alignment.
+     If the issue is who decides, when to decide, or what criteria govern a decision, choose poor_decision_making.
+
+  2. Friction vs silos:
+     If work is slow because of process burden, duplication, approvals, or handoff overhead, choose organisational_friction.
+     If work is slow because teams/functions lack shared context or optimise locally, choose siloed_thinking.
+
+  3. Clarity vs strategy-execution:
+     If people do not know the priority or direction, choose lack_of_clarity_alignment.
+     If the direction is known but not translated into practical work, choose strategy_execution_gap.
+
+  4. Strategy-execution vs adaptation:
+     If the issue is translating direction into action, choose strategy_execution_gap.
+     If change has begun but is not absorbed, embedded, or sustained, choose inability_to_adapt.
+
+  5. Emotion vs mechanism:
+     Do not classify frustration, concern, or dissatisfaction directly. Classify the organisational mechanism causing the blockage.
+
+  COMPACT EXAMPLES
+  - "Multiple approvals, repeated forms, duplicated work, and handoffs slow delivery" => organisational_friction
+  - "People disagree on priorities, ownership, scope, or what success looks like" => lack_of_clarity_alignment
+  - "The team knows the options but no one owns the decision or decision criteria" => poor_decision_making
+  - "Teams solve related issues separately and lack shared context across boundaries" => siloed_thinking
+  - "Leadership direction exists but teams cannot turn it into routines or delivery priorities" => strategy_execution_gap
+  - "A new way of working has started, but old habits return and the change does not stick" => inability_to_adapt
+
+  OUTPUT
   Return only valid JSON in this exact shape:
-  {"problem_category": "<one valid value or null>"}
+  {"problem_category":"<one valid value>"}
+  or
+  {"problem_category":null}
 
-  Use null if the synthesis is missing, unclear, not work-related, not organisational in nature, or cannot be classified safely.
+  Do not include explanation, rationale, markdown, comments, confidence, runner-up categories, or any other field.
 
 engagement_signal_prompt: |
-  You are classifying an Aether Glimpse coaching conversation for anonymous organisational telemetry.
+  You classify one Aether Glimpse coaching conversation for anonymous organisational telemetry.
 
-  Assess the dominant engagement or contribution signal in the conversation leading to synthesis.
-  Do not assess generated resolution pathways.
-  Do not classify emotional tone alone.
-  Classify organisational consequence: whether the organisation appears to be losing voice, contribution, trust, initiative or engagement.
+  TASK
+  Classify the dominant engagement_signal value, or null.
 
-  Classify the conversation into exactly one of the following values:
+  SOURCE
+  Use the conversation up to synthesis only.
+  Exclude generated pathways, pathway selection, impact questions, PDF/download actions, feedback questions, and anything after synthesis.
+  Base the classification primarily on user-authored statements. Use coach messages only as context.
 
+  CORE RULE
+  Classify organisational consequence, not mood or sentiment.
+  Identify whether the conversation gives clear evidence that organisational conditions are consuming energy, suppressing voice, or reducing willingness to contribute.
+  Do not classify the problem type. Do not infer from severity alone.
+  Choose the strongest clearly evidenced signal on the risk ladder.
+
+  VALID VALUES
   - no_visible_risk
   - frustration_signal
   - voice_suppression_signal
   - disengagement_risk
+  - null
 
-  Definitions:
+  NULL RULE
+  Return null if the conversation is missing, too short, not work-related, not organisational, unsuitable for engagement assessment, or lacks enough evidence to classify safely.
+  Do not use no_visible_risk as a default for missing or weak evidence.
+
+  SIGNAL RUBRIC
 
   no_visible_risk:
-    The conversation is suitable for engagement assessment, but there is no clear sign of contribution loss, voice suppression, withdrawal or disengagement.
+    Use when the conversation is suitable for assessment and the user remains neutral, constructive, solution-seeking, or matter-of-fact.
+    There is no clear evidence of reduced voice, withdrawal, resignation, loss of trust, or reduced willingness to contribute.
 
   frustration_signal:
-    The user still appears willing to improve or engage, but energy is being consumed by friction, delay, repeated inaction, ambiguity or organisational difficulty.
+    Use when the user still appears willing to engage or improve the situation, but energy is being consumed by organisational friction, ambiguity, delay, repeated inaction, or disappointment.
+    Typical evidence: irritation, fatigue, repeated frustration, feeling blocked, but still wanting resolution.
+    Do not use if the user indicates they avoid speaking up, have stopped trying, or no longer expect action.
 
   voice_suppression_signal:
-    The user appears hesitant to raise issues, ideas or concerns, or has learned that speaking up is unlikely to be useful.
+    Use when the user suggests they hesitate to raise issues, have stopped speaking up, feel unheard, self-censor, or believe raising concerns is unsafe, pointless, or unlikely to change anything.
+    Do not use if the evidence shows broader withdrawal or resignation; use disengagement_risk.
 
   disengagement_risk:
-    The conversation suggests stronger withdrawal, reduced willingness to contribute, loss of trust that the organisation will listen or act, or movement toward emotional disengagement.
+    Use when the conversation suggests withdrawal, resignation, emotional exit, reduced willingness to contribute, or loss of trust that the organisation will listen or act.
+    Typical evidence: giving up, doing the minimum, no longer trying, detaching, or expecting no meaningful change.
+    Do not infer this from frustration alone; require clear evidence of withdrawal or reduced contribution.
 
+  BOUNDARY RULES
+  1. Frustration vs voice suppression:
+     If the user is annoyed but still raising the issue and seeking improvement, choose frustration_signal.
+     If the user indicates they avoid raising concerns or believe speaking up is pointless or unsafe, choose voice_suppression_signal.
+
+  2. Voice suppression vs disengagement:
+     If the main evidence is withheld voice, hesitancy, or feeling unheard, choose voice_suppression_signal.
+     If the user shows broader withdrawal, resignation, reduced contribution, or emotional exit, choose disengagement_risk.
+
+  3. No visible risk vs null:
+     Choose no_visible_risk only when the conversation is assessable and no risk is detected.
+     Choose null when the conversation is insufficient, not organisational, or not suitable for engagement assessment.
+
+  4. Problem severity vs engagement risk:
+     A serious organisational problem does not automatically imply an engagement risk. Use only evidence from the user's language about energy, voice, trust, initiative, or willingness to contribute.
+
+  COMPACT EXAMPLES
+  - "This is annoying, but I want to find a way to fix it" => frustration_signal
+  - "I have stopped raising this because nothing changes" => voice_suppression_signal
+  - "I have given up trying; I just do the minimum now" => disengagement_risk
+  - "Here is the problem and I would like to work out the best next step" => no_visible_risk
+
+  OUTPUT
   Return only valid JSON in this exact shape:
-  {"engagement_signal": "<one valid value or null>"}
+  {"engagement_signal":"<one valid value>"}
+  or
+  {"engagement_signal":null}
 
-  Use null if the conversation is missing, too short, not work-related, not suitable for engagement assessment, or does not contain enough evidence to assess contribution, voice, frustration or disengagement.
+  Do not include explanation, rationale, markdown, comments, confidence, runner-up categories, or any other field.
